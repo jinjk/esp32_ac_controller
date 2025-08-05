@@ -44,6 +44,8 @@ void applyACSetting(const ACSetting& setting);
 void saveIRCode(const String& code);        // Legacy compatibility
 String loadIRCode();                        // Legacy compatibility
 void irLearningTask(void* parameter);       // FreeRTOS task for IR learning
+bool isIRReadyForControl();                 // Check if IR system has enough codes for AC control
+void updateIRControlReadiness();            // Update the readiness flag based on learned codes
 
 // IR Code storage structure
 struct IRCodeMap {
@@ -70,6 +72,7 @@ struct IRLearningState {
   int learnedButtons;
   int totalButtons;
   unsigned long stepStartTime;
+  bool isReadyForControl;  // Flag to indicate if enough codes are learned for AC control
 };
 
 // Global IR objects and state

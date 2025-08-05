@@ -131,6 +131,9 @@ String TaskManager::getTaskStatus() {
     irTask["start_time"] = irLearningTaskInfo.startTime;
     irTask["end_time"] = irLearningTaskInfo.endTime;
     irTask["name"] = irLearningTaskInfo.name;
+    irTask["ready_for_control"] = isIRReadyForControl();
+    irTask["learned_buttons"] = learningState.learnedButtons;
+    irTask["total_buttons"] = learningState.totalButtons;
     
     // Calibration task status
     JsonObject calTask = doc["calibration"].to<JsonObject>();
@@ -188,13 +191,24 @@ void TaskManager::irLearningTask() {
     // IR learning task implementation
     Serial.println("IR Learning task started");
     
+    // Start the guided learning sequence
+    startIRLearning();
+    
     while (irLearningTaskInfo.state == TASK_RUNNING) {
-        // Perform IR learning operations
-        // Note: IR receiver functionality would be implemented here
-        // when the IR system is properly initialized
-        Serial.println("IR Learning task running...");
-        
-        vTaskDelay(pdMS_TO_TICKS(1000)); // Check every second
+        if (learningState.isLearning) {
+            // Process IR learning operations
+            processIRLearning();
+            vTaskDelay(pdMS_TO_TICKS(100)); // Fast polling for IR signals
+        } else {
+            // Learning completed, exit the task
+            Serial.println("IR Learning sequence completed");
+            break;
+        }
+    }
+    
+    // Ensure learning is stopped if task was stopped externally
+    if (learningState.isLearning) {
+        stopIRLearning();
     }
     
     Serial.println("IR Learning task finished");

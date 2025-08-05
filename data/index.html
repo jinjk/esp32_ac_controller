@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ESP32-S3 AC Controller</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .status { background: linear-gradient(135deg, #e3ffe7 0%, #d9e7ff 100%); padding: 20px; border-radius: 10px; margin-bottom: 25px; border-left: 5px solid #007bff; }
+        .task-controller { background: linear-gradient(135deg, #fff3e0 0%, #f3e5f5 100%); padding: 20px; border-radius: 10px; margin-bottom: 25px; border-left: 5px solid #ff9800; }
+        .task-item { background: white; margin: 10px 0; padding: 15px; border-radius: 8px; border: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
+        .task-running { border-left: 4px solid #4caf50; background: #f8fff8; }
+        .task-stopped { border-left: 4px solid #9e9e9e; background: #f5f5f5; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
+        input { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; box-sizing: border-box; transition: border-color 0.3s; }
+        input:focus { border-color: #007bff; outline: none; }
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; transition: all 0.3s; margin: 5px; }
+        .btn-primary { background: linear-gradient(135deg, #007bff, #0056b3); color: white; }
+        .btn-secondary { background: linear-gradient(135deg, #6c757d, #545b62); color: white; }
+        .btn-success { background: linear-gradient(135deg, #28a745, #1e7e34); color: white; }
+        .btn-warning { background: linear-gradient(135deg, #ffc107, #e0a800); color: #212529; }
+        .btn-danger { background: linear-gradient(135deg, #dc3545, #bd2130); color: white; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        h2 { color: #333; text-align: center; margin-bottom: 30px; }
+        h3 { color: #666; border-bottom: 2px solid #007bff; padding-bottom: 10px; margin-bottom: 20px; }
+        .status-indicator { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; }
+        .status-running { background-color: #4caf50; animation: pulse 2s infinite; }
+        .status-stopped { background-color: #9e9e9e; }
+        .ir-not-ready { background-color: #ff9800; }
+        .ir-ready { background-color: #4caf50; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+        .warning-banner { background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .warning-banner.hidden { display: none; }
+    </style>
+    <script>
+        let irReadyForControl = false;
+        
+        function updateStatus() {
+            fetch('/status')
+            .then(response => response.json())
+            .then(data => {
+                updateTaskStatus('ir-learning', data.ir_learning);
+                updateTaskStatus('calibration', data.calibration);
+                updateIRReadiness(data.ir_learning);
+                document.getElementById('system-info').innerHTML = 
+                    `Free Memory: ${data.system?.freeHeap || 'N/A'} bytes | Active Tasks: ${data.system?.activeTasks || 'N/A'} | Uptime: ${Math.floor((data.system?.uptime || 0)/1000)}s`;
+            })
+            .catch(error => console.error('Error:', error));
+        }
+        
+        function updateIRReadiness(irData) {
+            irReadyForControl = irData.ready_for_control || false;
+            const warningBanner = document.getElementById('ir-warning-banner');
+            const irButtons = document.querySelectorAll('.ir-control-btn');
+            
+            if (!irReadyForControl) {
+                warningBanner.classList.remove('hidden');
+                irButtons.forEach(btn => {
+                    btn.disabled = true;
+                    btn.title = 'IR system not ready. Complete IR learning first.';
+                });
+            } else {
+                warningBanner.classList.add('hidden');
+                irButtons.forEach(btn => {
+                    btn.disabled = false;
+                    btn.title = '';
+                });
+            }
+            
+            // Update IR status in the system status section
+            const irStatusElement = document.getElementById('ir-status-text');
+            if (irStatusElement) {
+                const learnedButtons = irData.learned_buttons || 0;
+                const totalButtons = irData.total_buttons || 14;
+                irStatusElement.innerHTML = `📡 IR Buttons: ${learnedButtons}/${totalButtons} learned ${irReadyForControl ? '✅ Ready' : '⚠️ Not Ready'}`;
+            }
+        }
+        
+        function updateTaskStatus(taskId, taskData) {
+            const element = document.getElementById(taskId);
+            if (!element) return;
+            
+            const indicator = element.querySelector('.status-indicator');
+            const status = element.querySelector('.task-status');
+            const button = element.querySelector('.task-btn');
+            
+            const runtime = (Date.now() - (taskData.start_time || 0)) / 1000;
+            const lastDuration = ((taskData.end_time || 0) - (taskData.start_time || 0)) / 1000;
+            
+            if (taskData.state === 'running') {
+                element.className = 'task-item task-running';
+                indicator.className = 'status-indicator status-running';
+                status.textContent = `Running (${Math.floor(runtime)}s)`;
+                button.textContent = 'Stop';
+                button.className = 'btn btn-danger task-btn';
+                button.disabled = false;
+            } else {
+                element.className = 'task-item task-stopped';
+                indicator.className = 'status-indicator status-stopped';
+                status.textContent = `Stopped ${lastDuration > 0 ? `(Last: ${Math.floor(lastDuration)}s)` : ''}`;
+                button.textContent = 'Start';
+                button.className = 'btn btn-success task-btn';
+                button.disabled = false;
+            }
+        }
+        
+        function controlTask(taskName, action) {
+            const formData = new FormData();
+            formData.append('task', taskName);
+            formData.append('action', action);
+            
+            fetch('/task', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(data => {
+                console.log(data);
+                updateStatus();
+            })
+            .catch(error => console.error('Error:', error));
+        }
+        
+        function sendIRButton(buttonIndex) {
+            if (!irReadyForControl) {
+                showStatus('⚠️ IR system not ready. Please complete IR learning first.', false);
+                return;
+            }
+            
+            fetch('/send_ir', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'button=' + buttonIndex
+            })
+            .then(response => response.text())
+            .then(data => {
+                showStatus(data, data.includes('✅'));
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showStatus('❌ Error sending IR command', false);
+            });
+        }
+        
+        function showStatus(message, isSuccess) {
+            const status = document.getElementById('ir-status');
+            status.textContent = message;
+            status.style.display = 'block';
+            status.style.backgroundColor = isSuccess ? '#d4edda' : '#f8d7da';
+            setTimeout(() => status.style.display = 'none', 3000);
+        }
+        
+        setInterval(updateStatus, 2000); // Update every 2 seconds
+        window.onload = updateStatus;
+    </script>
+</head>
+<body>
+<div class="container">
+    <h2>🌡️ ESP32-S3 AC Controller</h2>
+    
+    <div id="ir-warning-banner" class="warning-banner hidden">
+        ⚠️ <strong>IR System Not Ready:</strong> Please complete IR learning before using AC controls. 
+        At minimum, you need Power ON/OFF, Temperature UP/DOWN, and at least one Fan speed.
+    </div>
+    
+    <div class="status">
+        <p><strong>📊 System Status:</strong></p>
+        <p id="temperature-status">🌡️ Temperature: Loading...</p>
+        <p id="ac-status">❄️ AC Status: Loading...</p>
+        <p id="mode-status">🕐 Mode: Loading...</p>
+        <p id="ir-status-text">📡 IR Buttons: Loading...</p>
+        <p id="system-info" style="font-size: 0.9em; color: #666;">Loading system info...</p>
+    </div>
+    
+    <div class="task-controller">
+        <h3>🎮 Task Controller</h3>
+        
+        <div id="ir-learning" class="task-item task-stopped">
+            <div>
+                <span class="status-indicator status-stopped"></span>
+                <strong>📡 IR Learning</strong><br>
+                <small class="task-status">Stopped</small>
+            </div>
+            <button class="btn btn-success task-btn" onclick="controlTask('ir-learning', this.textContent.toLowerCase())">Start</button>
+        </div>
+        
+        <div id="calibration" class="task-item task-stopped">
+            <div>
+                <span class="status-indicator status-stopped"></span>
+                <strong>🔧 Sensor Calibration</strong><br>
+                <small class="task-status">Stopped</small>
+            </div>
+            <button class="btn btn-success task-btn" onclick="controlTask('calibration', this.textContent.toLowerCase())">Start</button>
+        </div>
+    </div>
+    
+    <div class="grid">
+        <div>
+            <h3>☀️ Daytime Settings (8AM - 7PM)</h3>
+            <form action="/set" method="post">
+                <div class="form-group">
+                    <label>🌡️ Temperature (°C):</label>
+                    <input name="dayTemp" id="dayTemp" min="18" max="35" step="0.5" type="number">
+                </div>
+                <div class="form-group">
+                    <label>💨 Wind Speed (1-5):</label>
+                    <input name="dayWind" id="dayWind" min="1" max="5" type="number">
+                </div>
+                <button type="submit" class="btn btn-primary">💾 Save Day Settings</button>
+            </form>
+        </div>
+        
+        <div>
+            <h3>🌙 Nighttime Settings (7PM - 8AM)</h3>
+            <form action="/set" method="post">
+                <div class="form-group">
+                    <label>🌡️ Temperature (°C):</label>
+                    <input name="nightTemp" id="nightTemp" min="18" max="35" step="0.5" type="number">
+                </div>
+                <div class="form-group">
+                    <label>💨 Wind Speed (1-5):</label>
+                    <input name="nightWind" id="nightWind" min="1" max="5" type="number">
+                </div>
+                <button type="submit" class="btn btn-primary">💾 Save Night Settings</button>
+            </form>
+        </div>
+    </div>
+    
+    <div style="margin-top: 20px;">
+        <h3>🎯 IR Button Test</h3>
+        <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+            <button class="btn btn-secondary ir-control-btn" onclick="sendIRButton(0)">⚡ Power ON</button>
+            <button class="btn btn-secondary ir-control-btn" onclick="sendIRButton(1)">⭕ Power OFF</button>
+            <button class="btn btn-secondary ir-control-btn" onclick="sendIRButton(2)">🔥 Temp UP</button>
+            <button class="btn btn-secondary ir-control-btn" onclick="sendIRButton(3)">❄️ Temp DOWN</button>
+            <button class="btn btn-secondary ir-control-btn" onclick="sendIRButton(4)">💨 Fan LOW</button>
+            <button class="btn btn-secondary ir-control-btn" onclick="sendIRButton(5)">🌪️ Fan MED</button>
+            <button class="btn btn-secondary ir-control-btn" onclick="sendIRButton(6)">🌊 Fan HIGH</button>
+            <button class="btn btn-secondary ir-control-btn" onclick="sendIRButton(7)">❄️ Cool Mode</button>
+            <button class="btn btn-secondary ir-control-btn" onclick="sendIRButton(8)">🔥 Heat Mode</button>
+            <button class="btn btn-secondary ir-control-btn" onclick="sendIRButton(9)">🤖 Auto Mode</button>
+            <button class="btn btn-secondary ir-control-btn" onclick="sendIRButton(10)">↔️ Swing ON</button>
+            <button class="btn btn-secondary ir-control-btn" onclick="sendIRButton(11)">⏸️ Swing OFF</button>
+            <button class="btn btn-secondary ir-control-btn" onclick="sendIRButton(12)">⏰ Timer ON</button>
+            <button class="btn btn-secondary ir-control-btn" onclick="sendIRButton(13)">⏱️ Timer OFF</button>
+        </div>
+        <div id="ir-status" style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 5px; display: none;"></div>
+    </div>
+</div>
+</body>
+</html>

@@ -1,6 +1,7 @@
 #include "web_server.h"
 #include "task_manager.h"
 #include "ir_control.h"
+#include <SPIFFS.h>
 
 // Global web server object
 AsyncWebServer server(80);
@@ -31,6 +32,12 @@ void initWiFi() {
 }
 
 void setupWebServer() {
+  // Initialize SPIFFS
+  if(!SPIFFS.begin(true)){
+    Serial.println("An Error has occurred while mounting SPIFFS");
+    return;
+  }
+  
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send(200, "text/html", getWebContent());
   });
@@ -46,214 +53,82 @@ void setupWebServer() {
   Serial.println("Web server started");
 }
 
+String readFile(String path) {
+  File file = SPIFFS.open(path, "r");
+  if (!file) {
+    Serial.println("Failed to open file: " + path);
+    return "";
+  }
+  
+  String content = file.readString();
+  file.close();
+  return content;
+}
+
 String getWebContent() {
+  // Read the HTML template from SPIFFS
+  String html = readFile("/index.html");
+  
+  if (html.isEmpty()) {
+    // Fallback if file reading fails
+    return R"rawliteral(
+      <!DOCTYPE html>
+      <html>
+      <head><title>ESP32-S3 AC Controller</title></head>
+      <body>
+        <h1>ESP32-S3 AC Controller</h1>
+        <p>Error: Could not load web interface. Please check SPIFFS.</p>
+        <p><a href="/status">View Status</a></p>
+      </body>
+      </html>
+    )rawliteral";
+  }
+  
+  // Inject dynamic data into the HTML
   time_t now = time(nullptr);
   struct tm* timeinfo = localtime(&now);
   String mode = (timeinfo->tm_hour >= daySetting.startHour && timeinfo->tm_hour < daySetting.endHour) ? "Day" : "Night";
   
-  return R"rawliteral(
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>ESP32-S3 AC Controller</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <style>
-            body { font-family: Arial, sans-serif; margin: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
-            .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
-            .status { background: linear-gradient(135deg, #e3ffe7 0%, #d9e7ff 100%); padding: 20px; border-radius: 10px; margin-bottom: 25px; border-left: 5px solid #007bff; }
-            .task-controller { background: linear-gradient(135deg, #fff3e0 0%, #f3e5f5 100%); padding: 20px; border-radius: 10px; margin-bottom: 25px; border-left: 5px solid #ff9800; }
-            .task-item { background: white; margin: 10px 0; padding: 15px; border-radius: 8px; border: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
-            .task-running { border-left: 4px solid #4caf50; background: #f8fff8; }
-            .task-stopped { border-left: 4px solid #9e9e9e; background: #f5f5f5; }
-            .form-group { margin-bottom: 15px; }
-            label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
-            input { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; box-sizing: border-box; transition: border-color 0.3s; }
-            input:focus { border-color: #007bff; outline: none; }
-            .btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; transition: all 0.3s; margin: 5px; }
-            .btn-primary { background: linear-gradient(135deg, #007bff, #0056b3); color: white; }
-            .btn-success { background: linear-gradient(135deg, #28a745, #1e7e34); color: white; }
-            .btn-warning { background: linear-gradient(135deg, #ffc107, #e0a800); color: #212529; }
-            .btn-danger { background: linear-gradient(135deg, #dc3545, #bd2130); color: white; }
-            .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-            .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
-            h2 { color: #333; text-align: center; margin-bottom: 30px; }
-            h3 { color: #666; border-bottom: 2px solid #007bff; padding-bottom: 10px; margin-bottom: 20px; }
-            .status-indicator { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; }
-            .status-running { background-color: #4caf50; animation: pulse 2s infinite; }
-            .status-stopped { background-color: #9e9e9e; }
-            @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-            @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
-        </style>
-        <script>
-            function updateStatus() {
-                fetch('/status')
-                .then(response => response.json())
-                .then(data => {
-                    updateTaskStatus('ir-learning', data.irLearning);
-                    updateTaskStatus('calibration', data.calibration);
-                    document.getElementById('system-info').innerHTML = 
-                        `Free Memory: ${data.system.freeHeap} bytes | Active Tasks: ${data.system.activeTasks} | Uptime: ${Math.floor(data.system.uptime/1000)}s`;
-                })
-                .catch(error => console.error('Error:', error));
-            }
-            
-            function updateTaskStatus(taskId, taskData) {
-                const element = document.getElementById(taskId);
-                const indicator = element.querySelector('.status-indicator');
-                const status = element.querySelector('.task-status');
-                const button = element.querySelector('.task-btn');
-                
-                if (taskData.state === 'running') {
-                    element.className = 'task-item task-running';
-                    indicator.className = 'status-indicator status-running';
-                    status.textContent = `Running (${Math.floor(taskData.runtime/1000)}s)`;
-                    button.textContent = 'Stop';
-                    button.className = 'btn btn-danger task-btn';
-                    button.disabled = false;
-                } else {
-                    element.className = 'task-item task-stopped';
-                    indicator.className = 'status-indicator status-stopped';
-                    status.textContent = `Stopped (Last: ${Math.floor(taskData.lastDuration/1000)}s)`;
-                    button.textContent = 'Start';
-                    button.className = 'btn btn-success task-btn';
-                    button.disabled = false;
-                }
-            }
-            
-            function controlTask(taskName, action) {
-                const formData = new FormData();
-                formData.append('task', taskName);
-                formData.append('action', action);
-                
-                fetch('/task', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.text())
-                .then(data => {
-                    console.log(data);
-                    updateStatus();
-                })
-                .catch(error => console.error('Error:', error));
-            }
-            
-            setInterval(updateStatus, 2000); // Update every 2 seconds
-            window.onload = updateStatus;
-        </script>
-    </head>
-    <body>
-    <div class="container">
-        <h2>�️ ESP32-S3 AC Controller</h2>
+  // Add dynamic data injection via JavaScript
+  String dynamicScript = R"rawliteral(
+    <script>
+      // Dynamic data from ESP32
+      window.ESP32_DATA = {
+        currentTemp: )rawliteral" + String(currentTemp, 1) + R"rawliteral(,
+        acOn: )rawliteral" + (acOn ? "true" : "false") + R"rawliteral(,
+        mode: ")rawliteral" + mode + R"rawliteral(",
+        daySetting: {
+          temp: )rawliteral" + String(daySetting.temp, 1) + R"rawliteral(,
+          wind: )rawliteral" + String(daySetting.wind) + R"rawliteral(,
+          startHour: )rawliteral" + String(daySetting.startHour) + R"rawliteral(,
+          endHour: )rawliteral" + String(daySetting.endHour) + R"rawliteral(
+        },
+        nightSetting: {
+          temp: )rawliteral" + String(nightSetting.temp, 1) + R"rawliteral(,
+          wind: )rawliteral" + String(nightSetting.wind) + R"rawliteral(
+        }
+      };
+      
+      // Update page with dynamic data when loaded
+      document.addEventListener('DOMContentLoaded', function() {
+        // Update status display
+        document.getElementById('temperature-status').textContent = '🌡️ Temperature: ' + window.ESP32_DATA.currentTemp + '°C';
+        document.getElementById('ac-status').textContent = '❄️ AC Status: ' + (window.ESP32_DATA.acOn ? '🟢 ON' : '🔴 OFF');
+        document.getElementById('mode-status').textContent = '🕐 Mode: ' + window.ESP32_DATA.mode;
         
-        <div class="status">
-            <p><strong>📊 System Status:</strong></p>
-            <p>🌡️ Temperature: )rawliteral" + String(currentTemp, 1) + R"rawliteral(°C</p>
-            <p>❄️ AC Status: )rawliteral" + (acOn ? "🟢 ON" : "🔴 OFF") + R"rawliteral(</p>
-            <p>🕐 Mode: )rawliteral" + mode + R"rawliteral(</p>
-            <p>📡 IR Buttons: )rawliteral" + String(learningState.learnedButtons) + "/" + String(learningState.totalButtons) + " learned" + R"rawliteral(</p>
-            <p id="system-info" style="font-size: 0.9em; color: #666;">Loading system info...</p>
-        </div>
-        
-        <div class="task-controller">
-            <h3>🎮 Task Controller</h3>
-            
-            <div id="ir-learning" class="task-item task-stopped">
-                <div>
-                    <span class="status-indicator status-stopped"></span>
-                    <strong>📡 IR Learning</strong><br>
-                    <small class="task-status">)rawliteral" + (learningState.isLearning ? 
-                        "Learning " + String(buttonNames[learningState.currentButton]) : 
-                        String(learningState.learnedButtons) + "/" + String(learningState.totalButtons) + " buttons learned") + R"rawliteral(</small>
-                </div>
-                <button class="btn btn-success task-btn" onclick="controlTask('ir-learning', this.textContent.toLowerCase())">Start</button>
-            </div>
-            
-            <div id="calibration" class="task-item task-stopped">
-                <div>
-                    <span class="status-indicator status-stopped"></span>
-                    <strong>🔧 Sensor Calibration</strong><br>
-                    <small class="task-status">Stopped</small>
-                </div>
-                <button class="btn btn-success task-btn" onclick="controlTask('calibration', this.textContent.toLowerCase())">Start</button>
-            </div>
-        </div>
-        
-        <div class="grid">
-            <div>
-                <h3>☀️ Daytime Settings (8AM - 7PM)</h3>
-                <form action="/set" method="post">
-                    <div class="form-group">
-                        <label>🌡️ Temperature (°C):</label>
-                        <input name="dayTemp" value=")rawliteral" + String(daySetting.temp, 1) + R"rawliteral(" min="18" max="35" step="0.5" type="number">
-                    </div>
-                    <div class="form-group">
-                        <label>💨 Wind Speed (1-5):</label>
-                        <input name="dayWind" value=")rawliteral" + String(daySetting.wind) + R"rawliteral(" min="1" max="5" type="number">
-                    </div>
-                    <button type="submit" class="btn btn-primary">💾 Save Day Settings</button>
-                </form>
-            </div>
-            
-            <div>
-                <h3>🌙 Nighttime Settings (7PM - 8AM)</h3>
-                <form action="/set" method="post">
-                    <div class="form-group">
-                        <label>🌡️ Temperature (°C):</label>
-                        <input name="nightTemp" value=")rawliteral" + String(nightSetting.temp, 1) + R"rawliteral(" min="18" max="35" step="0.5" type="number">
-                    </div>
-                    <div class="form-group">
-                        <label>💨 Wind Speed (1-5):</label>
-                        <input name="nightWind" value=")rawliteral" + String(nightSetting.wind) + R"rawliteral(" min="1" max="5" type="number">
-                    </div>
-                    <button type="submit" class="btn btn-primary">💾 Save Night Settings</button>
-                </form>
-            </div>
-        </div>
-        
-        <div style="margin-top: 20px;">
-            <h3>🎯 IR Button Test</h3>
-            <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
-                <button class="btn btn-secondary" onclick="sendIRButton(0)">⚡ Power ON</button>
-                <button class="btn btn-secondary" onclick="sendIRButton(1)">⭕ Power OFF</button>
-                <button class="btn btn-secondary" onclick="sendIRButton(2)">🔥 Temp UP</button>
-                <button class="btn btn-secondary" onclick="sendIRButton(3)">❄️ Temp DOWN</button>
-                <button class="btn btn-secondary" onclick="sendIRButton(4)">💨 Fan LOW</button>
-                <button class="btn btn-secondary" onclick="sendIRButton(5)">🌪️ Fan MED</button>
-                <button class="btn btn-secondary" onclick="sendIRButton(6)">🌊 Fan HIGH</button>
-                <button class="btn btn-secondary" onclick="sendIRButton(7)">❄️ Cool Mode</button>
-                <button class="btn btn-secondary" onclick="sendIRButton(8)">🔥 Heat Mode</button>
-                <button class="btn btn-secondary" onclick="sendIRButton(9)">🤖 Auto Mode</button>
-                <button class="btn btn-secondary" onclick="sendIRButton(10)">↔️ Swing ON</button>
-                <button class="btn btn-secondary" onclick="sendIRButton(11)">⏸️ Swing OFF</button>
-                <button class="btn btn-secondary" onclick="sendIRButton(12)">⏰ Timer ON</button>
-                <button class="btn btn-secondary" onclick="sendIRButton(13)">⏱️ Timer OFF</button>
-            </div>
-            <div id="ir-status" style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 5px; display: none;"></div>
-            
-            <script>
-                function sendIRButton(buttonIndex) {
-                    fetch('/send_ir', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                        body: 'button=' + buttonIndex
-                    })
-                    .then(response => response.text())
-                    .then(data => {
-                        const status = document.getElementById('ir-status');
-                        status.textContent = data;
-                        status.style.display = 'block';
-                        status.style.backgroundColor = data.includes('✅') ? '#d4edda' : '#f8d7da';
-                        setTimeout(() => status.style.display = 'none', 3000);
-                    })
-                    .catch(error => console.error('Error:', error));
-                }
-            </script>
-        </div>
-    </div>
-    </body>
-    </html>
+        // Update form values
+        document.getElementById('dayTemp').value = window.ESP32_DATA.daySetting.temp;
+        document.getElementById('dayWind').value = window.ESP32_DATA.daySetting.wind;
+        document.getElementById('nightTemp').value = window.ESP32_DATA.nightSetting.temp;
+        document.getElementById('nightWind').value = window.ESP32_DATA.nightSetting.wind;
+      });
+    </script>
   )rawliteral";
+  
+  // Insert the dynamic script before closing </body> tag
+  html.replace("</body>", dynamicScript + "</body>");
+  
+  return html;
 }
 
 void handleIRLearn(AsyncWebServerRequest *request) {

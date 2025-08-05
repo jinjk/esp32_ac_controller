@@ -42,9 +42,14 @@ void initIR() {
   learningState.currentButton = IR_POWER_ON;
   learningState.learnedButtons = countLearnedButtons();
   learningState.totalButtons = sizeof(buttonNames) / sizeof(buttonNames[0]);
+  learningState.isReadyForControl = false;
+  
+  // Update readiness flag based on learned codes
+  updateIRControlReadiness();
   
   Serial.println("IR system initialized");
   Serial.printf("Loaded %d/%d IR codes\n", learningState.learnedButtons, learningState.totalButtons);
+  Serial.printf("IR control ready: %s\n", learningState.isReadyForControl ? "YES" : "NO");
 }
 
 void loadAllIRCodes() {
@@ -146,7 +151,8 @@ void saveIRCodeForButton(IRButton button, const String& code) {
       case IR_TIMER_OFF: irCodes.timerOff = code; break;
     }
     
-    learningState.learnedButtons = countLearnedButtons();
+    // Update learning statistics and readiness
+    updateIRControlReadiness();
     Serial.printf("Saved IR code for %s: %s\n", buttonNames[button], code.c_str());
   }
 }
@@ -174,6 +180,11 @@ void sendIRCommand(const String& hexCode) {
 }
 
 void sendIRButton(IRButton button) {
+  if (!learningState.isReadyForControl) {
+    Serial.println("WARNING: IR system not ready for AC control. Please complete IR learning first.");
+    return;
+  }
+  
   String code = getIRCodeForButton(button);
   if (code.length() > 0) {
     sendIRCommand(code);
@@ -246,6 +257,11 @@ void moveToNextLearningStep() {
 }
 
 void applyACSetting(const ACSetting& setting) {
+  if (!learningState.isReadyForControl) {
+    Serial.println("WARNING: IR system not ready for AC control. Please complete IR learning first.");
+    return;
+  }
+  
   // Use specific buttons based on setting values
   if (setting.temp > 24.0) {
     sendIRButton(IR_TEMP_UP);
@@ -261,6 +277,28 @@ void applyACSetting(const ACSetting& setting) {
   }
   
   Serial.printf("Applied AC Setting: Temp %.1f°C, Wind %d\n", setting.temp, setting.wind);
+}
+
+bool isIRReadyForControl() {
+  return learningState.isReadyForControl;
+}
+
+void updateIRControlReadiness() {
+  // Define minimum required codes for basic AC control
+  // At minimum we need: Power ON/OFF, Temp UP/DOWN, and at least one fan speed
+  bool hasPowerControl = (irCodes.powerOn.length() > 0 && irCodes.powerOff.length() > 0);
+  bool hasTempControl = (irCodes.tempUp.length() > 0 && irCodes.tempDown.length() > 0);
+  bool hasFanControl = (irCodes.fanLow.length() > 0 || irCodes.fanMed.length() > 0 || irCodes.fanHigh.length() > 0);
+  
+  // Update readiness flag
+  learningState.isReadyForControl = hasPowerControl && hasTempControl && hasFanControl;
+  learningState.learnedButtons = countLearnedButtons();
+  
+  Serial.printf("IR Control Readiness Check:\n");
+  Serial.printf("  Power Control: %s\n", hasPowerControl ? "OK" : "MISSING");
+  Serial.printf("  Temperature Control: %s\n", hasTempControl ? "OK" : "MISSING");
+  Serial.printf("  Fan Control: %s\n", hasFanControl ? "OK" : "MISSING");
+  Serial.printf("  Ready for AC Control: %s\n", learningState.isReadyForControl ? "YES" : "NO");
 }
 
 // Legacy function for compatibility

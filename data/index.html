@@ -38,22 +38,101 @@
     </style>
     <script>
         let irReadyForControl = false;
+        let systemData = {};
+        let settingsData = {};
+        
+        // Load initial data
+        async function loadSystemData() {
+            try {
+                const response = await fetch('/api/system');
+                if (response.ok) {
+                    systemData = await response.json();
+                    updateSystemDisplay();
+                } else {
+                    console.error('Failed to load system data:', response.status);
+                }
+            } catch (error) {
+                console.error('Error loading system data:', error);
+                // Show fallback data
+                document.getElementById('temperature-status').textContent = '🌡️ Temperature: Loading...';
+                document.getElementById('ac-status').textContent = '❄️ AC Status: Loading...';
+                document.getElementById('mode-status').textContent = '🕐 Mode: Loading...';
+            }
+        }
+        
+        async function loadSettings() {
+            try {
+                const response = await fetch('/api/settings');
+                if (response.ok) {
+                    settingsData = await response.json();
+                    updateSettingsDisplay();
+                } else {
+                    console.error('Failed to load settings:', response.status);
+                }
+            } catch (error) {
+                console.error('Error loading settings:', error);
+                // Keep default form values
+            }
+        }
+        
+        function updateSystemDisplay() {
+            // Update system status
+            if (systemData.currentTemp !== undefined) {
+                document.getElementById('temperature-status').textContent = '🌡️ Temperature: ' + systemData.currentTemp.toFixed(1) + '°C';
+            }
+            
+            if (systemData.acOn !== undefined) {
+                document.getElementById('ac-status').textContent = '❄️ AC Status: ' + (systemData.acOn ? '🟢 ON' : '🔴 OFF');
+            }
+            
+            if (systemData.mode !== undefined) {
+                document.getElementById('mode-status').textContent = '🕐 Mode: ' + systemData.mode;
+            }
+            
+            // Update IR status
+            if (systemData.ir) {
+                const irData = systemData.ir;
+                const irStatusText = `📡 IR Buttons: ${irData.learnedButtons}/${irData.totalButtons} learned ${irData.ready ? '✅ Ready' : '⚠️ Not Ready'}`;
+                document.getElementById('ir-status-text').innerHTML = irStatusText;
+                updateIRReadiness(irData);
+            }
+            
+            // Update system info
+            if (systemData.system) {
+                const sys = systemData.system;
+                document.getElementById('system-info').innerHTML = 
+                    `Free Memory: ${sys.freeHeap} bytes | Active Tasks: ${sys.activeTasks} | Uptime: ${Math.floor(sys.uptime/1000)}s`;
+            }
+        }
+        
+        function updateSettingsDisplay() {
+            if (settingsData.day) {
+                document.getElementById('dayTemp').value = settingsData.day.temp;
+                document.getElementById('dayWind').value = settingsData.day.wind;
+            }
+            
+            if (settingsData.night) {
+                document.getElementById('nightTemp').value = settingsData.night.temp;
+                document.getElementById('nightWind').value = settingsData.night.wind;
+            }
+        }
         
         function updateStatus() {
-            fetch('/status')
+            fetch('/api/tasks/status')
             .then(response => response.json())
             .then(data => {
                 updateTaskStatus('ir-learning', data.ir_learning);
                 updateTaskStatus('calibration', data.calibration);
-                updateIRReadiness(data.ir_learning);
-                document.getElementById('system-info').innerHTML = 
-                    `Free Memory: ${data.system?.freeHeap || 'N/A'} bytes | Active Tasks: ${data.system?.activeTasks || 'N/A'} | Uptime: ${Math.floor((data.system?.uptime || 0)/1000)}s`;
+                updateTaskStatus('control', data.control);
             })
             .catch(error => console.error('Error:', error));
+            
+            // Also refresh system data
+            loadSystemData();
         }
         
         function updateIRReadiness(irData) {
-            irReadyForControl = irData.ready_for_control || false;
+            irReadyForControl = irData.ready || false;
             const warningBanner = document.getElementById('ir-warning-banner');
             const irButtons = document.querySelectorAll('.ir-control-btn');
             
@@ -69,14 +148,6 @@
                     btn.disabled = false;
                     btn.title = '';
                 });
-            }
-            
-            // Update IR status in the system status section
-            const irStatusElement = document.getElementById('ir-status-text');
-            if (irStatusElement) {
-                const learnedButtons = irData.learned_buttons || 0;
-                const totalButtons = irData.total_buttons || 14;
-                irStatusElement.innerHTML = `📡 IR Buttons: ${learnedButtons}/${totalButtons} learned ${irReadyForControl ? '✅ Ready' : '⚠️ Not Ready'}`;
             }
         }
         
@@ -113,16 +184,25 @@
             formData.append('task', taskName);
             formData.append('action', action);
             
-            fetch('/task', {
+            fetch('/api/tasks', {
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.text())
+            .then(response => response.json())
             .then(data => {
-                console.log(data);
+                if (data.success) {
+                    console.log('✅', data.message);
+                    showStatus(data.message, true);
+                } else {
+                    console.error('❌', data.message);
+                    showStatus(data.message, false);
+                }
                 updateStatus();
             })
-            .catch(error => console.error('Error:', error));
+            .catch(error => {
+                console.error('Error:', error);
+                showStatus('❌ Network error', false);
+            });
         }
         
         function sendIRButton(buttonIndex) {
@@ -131,14 +211,18 @@
                 return;
             }
             
-            fetch('/send_ir', {
+            fetch('/api/ir/send', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: 'button=' + buttonIndex
             })
-            .then(response => response.text())
+            .then(response => response.json())
             .then(data => {
-                showStatus(data, data.includes('✅'));
+                if (data.success) {
+                    showStatus('✅ ' + data.message, true);
+                } else {
+                    showStatus('❌ ' + data.message, false);
+                }
             })
             .catch(error => {
                 console.error('Error:', error);
@@ -154,8 +238,38 @@
             setTimeout(() => status.style.display = 'none', 3000);
         }
         
+        function updateSettings(event, type) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            
+            fetch('/api/settings', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showStatus('✅ ' + data.message, true);
+                    setTimeout(loadSettings, 500);
+                } else {
+                    showStatus('❌ ' + data.message, false);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showStatus('❌ Error updating settings', false);
+            });
+        }
+        
         setInterval(updateStatus, 2000); // Update every 2 seconds
-        window.onload = updateStatus;
+        
+        // Initialize page
+        window.onload = function() {
+            loadSystemData();
+            loadSettings();
+            updateStatus();
+        };
     </script>
 </head>
 <body>
@@ -196,12 +310,21 @@
             </div>
             <button class="btn btn-success task-btn" onclick="controlTask('calibration', this.textContent.toLowerCase())">Start</button>
         </div>
+        
+        <div id="control" class="task-item task-stopped">
+            <div>
+                <span class="status-indicator status-stopped"></span>
+                <strong>❄️ AC Control</strong><br>
+                <small class="task-status">Stopped</small>
+            </div>
+            <button class="btn btn-success task-btn" onclick="controlTask('control', this.textContent.toLowerCase())">Start</button>
+        </div>
     </div>
     
     <div class="grid">
         <div>
             <h3>☀️ Daytime Settings (8AM - 7PM)</h3>
-            <form action="/set" method="post">
+            <form onsubmit="updateSettings(event, 'day')" method="post">
                 <div class="form-group">
                     <label>🌡️ Temperature (°C):</label>
                     <input name="dayTemp" id="dayTemp" min="18" max="35" step="0.5" type="number">
@@ -216,7 +339,7 @@
         
         <div>
             <h3>🌙 Nighttime Settings (7PM - 8AM)</h3>
-            <form action="/set" method="post">
+            <form onsubmit="updateSettings(event, 'night')" method="post">
                 <div class="form-group">
                     <label>🌡️ Temperature (°C):</label>
                     <input name="nightTemp" id="nightTemp" min="18" max="35" step="0.5" type="number">

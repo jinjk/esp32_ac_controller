@@ -21,6 +21,12 @@ TaskManager::TaskManager() {
     calibrationTaskInfo.startTime = 0;
     calibrationTaskInfo.endTime = 0;
     calibrationTaskInfo.name = "Calibration";
+    
+    controlTaskInfo.handle = nullptr;
+    controlTaskInfo.state = TASK_STOPPED;
+    controlTaskInfo.startTime = 0;
+    controlTaskInfo.endTime = 0;
+    controlTaskInfo.name = "AC Control";
 }
 
 // IR Learning Task Functions
@@ -121,6 +127,68 @@ TaskState TaskManager::getCalibrationState() {
     return calibrationTaskInfo.state;
 }
 
+// AC Control Task Functions
+bool TaskManager::startControlTask() {
+    if (controlTaskInfo.state != TASK_STOPPED) {
+        return false; // Task already running or starting
+    }
+    
+    if (!isIRReadyForControl()) {
+        Serial.println("Cannot start control task: IR system not ready");
+        return false;
+    }
+    
+    controlTaskInfo.state = TASK_STARTING;
+    controlTaskInfo.startTime = millis();
+    
+    BaseType_t result = xTaskCreatePinnedToCore(
+        controlTaskWrapper,
+        "AC Control Task",
+        8192,
+        this,
+        2,
+        &controlTaskInfo.handle,
+        0  // Pin to core 0
+    );
+    
+    if (result == pdPASS) {
+        controlTaskInfo.state = TASK_RUNNING;
+        Serial.println("✅ AC Control Task started successfully");
+        return true;
+    } else {
+        controlTaskInfo.state = TASK_STOPPED;
+        controlTaskInfo.handle = nullptr;
+        Serial.println("❌ Failed to start AC Control Task");
+        return false;
+    }
+}
+
+bool TaskManager::stopControlTask() {
+    if (controlTaskInfo.state == TASK_STOPPED) {
+        return true; // Already stopped
+    }
+    
+    controlTaskInfo.state = TASK_STOPPING;
+    
+    if (controlTaskInfo.handle != nullptr) {
+        vTaskDelete(controlTaskInfo.handle);
+        controlTaskInfo.handle = nullptr;
+    }
+    
+    controlTaskInfo.state = TASK_STOPPED;
+    controlTaskInfo.endTime = millis();
+    Serial.println("🛑 AC Control Task stopped");
+    return true;
+}
+
+TaskState TaskManager::getControlState() {
+    return controlTaskInfo.state;
+}
+
+bool TaskManager::isControlTaskRunning() {
+    return controlTaskInfo.state == TASK_RUNNING;
+}
+
 // General Management Functions
 String TaskManager::getTaskStatus() {
     JsonDocument doc;
@@ -141,6 +209,14 @@ String TaskManager::getTaskStatus() {
     calTask["start_time"] = calibrationTaskInfo.startTime;
     calTask["end_time"] = calibrationTaskInfo.endTime;
     calTask["name"] = calibrationTaskInfo.name;
+    
+    // Control task status
+    JsonObject controlTask = doc["control"].to<JsonObject>();
+    controlTask["state"] = getStateString(controlTaskInfo.state);
+    controlTask["start_time"] = controlTaskInfo.startTime;
+    controlTask["end_time"] = controlTaskInfo.endTime;
+    controlTask["name"] = controlTaskInfo.name;
+    controlTask["ir_ready"] = isIRReadyForControl();
     
     String result;
     serializeJson(doc, result);
@@ -186,6 +262,11 @@ void TaskManager::calibrationTaskWrapper(void* parameter) {
     manager->calibrationTask();
 }
 
+void TaskManager::controlTaskWrapper(void* parameter) {
+    TaskManager* manager = static_cast<TaskManager*>(parameter);
+    manager->controlTask();
+}
+
 // Task implementation functions
 void TaskManager::irLearningTask() {
     // IR learning task implementation
@@ -202,6 +283,13 @@ void TaskManager::irLearningTask() {
         } else {
             // Learning completed, exit the task
             Serial.println("IR Learning sequence completed");
+            
+            // Check if we should start the control task now that IR is ready
+            if (isIRReadyForControl() && !isControlTaskRunning()) {
+                Serial.println("🚀 IR learning complete - starting AC Control Task automatically");
+                startControlTask();
+            }
+            
             break;
         }
     }
@@ -231,5 +319,20 @@ void TaskManager::calibrationTask() {
     
     Serial.println("Calibration task finished");
     calibrationTaskInfo.state = TASK_STOPPED;
+    vTaskDelete(nullptr);
+}
+
+void TaskManager::controlTask() {
+    // Control task implementation - calls the existing controlTask function
+    Serial.println("AC Control task started via Task Manager");
+    
+    // Call the existing controlTask function from ac_control.cpp
+    // We need to import the function declaration
+    extern void controlTask(void* param);
+    controlTask(nullptr);
+    
+    // If the control task returns, mark as stopped
+    controlTaskInfo.state = TASK_STOPPED;
+    Serial.println("AC Control task finished");
     vTaskDelete(nullptr);
 }

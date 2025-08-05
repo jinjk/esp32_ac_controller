@@ -35,15 +35,28 @@ void setup() {
   setupWebServer();
   
   // Create only essential tasks for maximum power efficiency
-  // Core 0: Critical AC control task (high priority)
+  // Core 0: Critical AC control task (high priority) - only if IR is ready
   // Core 1: Display task (low priority)
   // Other tasks (IR Learning, Calibration) are created on-demand via WebUI
-  xTaskCreatePinnedToCore(controlTask, "AC Control Task", 8192, NULL, 2, NULL, 0);
+  
+  if (isIRReadyForControl()) {
+    taskManager.startControlTask();
+    Serial.println("✅ AC Control Task created - IR system ready");
+  } else {
+    Serial.println("⚠️ AC Control Task NOT created - IR system not ready");
+    Serial.println("💡 Complete IR learning via WebUI to enable automatic AC control");
+  }
+  
   xTaskCreatePinnedToCore(displayTask, "Display Task", 4096, NULL, 1, NULL, 1);
   
   Serial.println("=== ESP32-S3 AC Controller Started Successfully! ===");
   Serial.printf("Web interface available at: http://%s\n", WiFi.localIP().toString().c_str());
   Serial.println("📱 Use the WebUI to start tasks like IR Learning and Calibration on-demand");
+  
+  if (!isIRReadyForControl()) {
+    Serial.println("🔧 SETUP REQUIRED: Complete IR learning to enable automatic AC control");
+  }
+  
   Serial.printf("💾 Free heap: %d bytes, Active tasks: %d\n", ESP.getFreeHeap(), uxTaskGetNumberOfTasks());
   
   // Delete the setup and loop tasks to save memory and power

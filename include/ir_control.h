@@ -33,7 +33,6 @@ int countLearnedButtons();
 String getIRCodeForButton(IRButton button);
 String getButtonPrefsKey(IRButton button);
 void saveIRCodeForButton(IRButton button, const String& code);
-void handleIRLearning();
 void sendIRCommand(const String& hexCode);
 void sendIRButton(IRButton button);
 void startIRLearning();
@@ -41,9 +40,6 @@ void stopIRLearning();
 bool processIRLearning();
 void moveToNextLearningStep();
 void applyACSetting(const ACSetting& setting);
-void saveIRCode(const String& code);        // Legacy compatibility
-String loadIRCode();                        // Legacy compatibility
-void irLearningTask(void* parameter);       // FreeRTOS task for IR learning
 bool isIRReadyForControl();                 // Check if IR system has enough codes for AC control
 void updateIRControlReadiness();            // Update the readiness flag based on learned codes
 

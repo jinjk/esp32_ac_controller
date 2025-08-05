@@ -2,6 +2,7 @@
 #include "task_manager.h"
 #include "ir_control.h"
 #include <SPIFFS.h>
+#include <ArduinoJson.h>
 
 // Global web server object
 AsyncWebServer server(80);
@@ -42,12 +43,25 @@ void setupWebServer() {
     request->send(200, "text/html", getWebContent());
   });
 
-  server.on("/learn", HTTP_POST, handleIRLearn);
-  server.on("/send_ir", HTTP_POST, handleIRSend);
-  server.on("/set", HTTP_POST, handleSettingsUpdate);
-  server.on("/task", HTTP_POST, handleTaskControl);
-  server.on("/status", HTTP_GET, handleTaskStatus);
-  server.on("/stop", HTTP_POST, handleStopTask);
+  // REST API endpoints
+  server.on("/api/ir/learn", HTTP_POST, handleIRLearn);
+  server.on("/api/ir/send", HTTP_POST, handleIRSend);
+  server.on("/api/settings", HTTP_POST, handleSettingsUpdate);
+  server.on("/api/tasks", HTTP_POST, handleTaskControl);
+  server.on("/api/tasks/status", HTTP_GET, handleTaskStatus);
+  server.on("/api/tasks/stop", HTTP_POST, handleStopTask);
+  
+  // System and configuration APIs
+  server.on("/api/system", HTTP_GET, handleSystemInfo);
+  server.on("/api/settings", HTTP_GET, handleSettings);
+  server.on("/api/health", HTTP_GET, [](AsyncWebServerRequest *request) {
+    JsonDocument doc;
+    doc["status"] = "ok";
+    doc["timestamp"] = millis();
+    String response;
+    serializeJson(doc, response);
+    request->send(200, "application/json", response);
+  });
 
   server.begin();
   Serial.println("Web server started");
@@ -84,65 +98,38 @@ String getWebContent() {
     )rawliteral";
   }
   
-  // Inject dynamic data into the HTML
-  time_t now = time(nullptr);
-  struct tm* timeinfo = localtime(&now);
-  String mode = (timeinfo->tm_hour >= daySetting.startHour && timeinfo->tm_hour < daySetting.endHour) ? "Day" : "Night";
-  
-  // Add dynamic data injection via JavaScript
-  String dynamicScript = R"rawliteral(
-    <script>
-      // Dynamic data from ESP32
-      window.ESP32_DATA = {
-        currentTemp: )rawliteral" + String(currentTemp, 1) + R"rawliteral(,
-        acOn: )rawliteral" + (acOn ? "true" : "false") + R"rawliteral(,
-        mode: ")rawliteral" + mode + R"rawliteral(",
-        daySetting: {
-          temp: )rawliteral" + String(daySetting.temp, 1) + R"rawliteral(,
-          wind: )rawliteral" + String(daySetting.wind) + R"rawliteral(,
-          startHour: )rawliteral" + String(daySetting.startHour) + R"rawliteral(,
-          endHour: )rawliteral" + String(daySetting.endHour) + R"rawliteral(
-        },
-        nightSetting: {
-          temp: )rawliteral" + String(nightSetting.temp, 1) + R"rawliteral(,
-          wind: )rawliteral" + String(nightSetting.wind) + R"rawliteral(
-        }
-      };
-      
-      // Update page with dynamic data when loaded
-      document.addEventListener('DOMContentLoaded', function() {
-        // Update status display
-        document.getElementById('temperature-status').textContent = '🌡️ Temperature: ' + window.ESP32_DATA.currentTemp + '°C';
-        document.getElementById('ac-status').textContent = '❄️ AC Status: ' + (window.ESP32_DATA.acOn ? '🟢 ON' : '🔴 OFF');
-        document.getElementById('mode-status').textContent = '🕐 Mode: ' + window.ESP32_DATA.mode;
-        
-        // Update form values
-        document.getElementById('dayTemp').value = window.ESP32_DATA.daySetting.temp;
-        document.getElementById('dayWind').value = window.ESP32_DATA.daySetting.wind;
-        document.getElementById('nightTemp').value = window.ESP32_DATA.nightSetting.temp;
-        document.getElementById('nightWind').value = window.ESP32_DATA.nightSetting.wind;
-      });
-    </script>
-  )rawliteral";
-  
-  // Insert the dynamic script before closing </body> tag
-  html.replace("</body>", dynamicScript + "</body>");
-  
   return html;
 }
 
 void handleIRLearn(AsyncWebServerRequest *request) {
+  JsonDocument doc;
+  
   // Start IR learning task dynamically
   if (taskManager.startIRLearningTask()) {
-    request->send(200, "text/plain", "✅ IR learning task started. Point remote at device and press button.");
+    doc["success"] = true;
+    doc["message"] = "IR learning task started. Point remote at device and press button.";
+    doc["status"] = "started";
   } else {
-    request->send(500, "text/plain", "❌ Failed to start IR learning task. Task may already be running.");
+    doc["success"] = false;
+    doc["message"] = "Failed to start IR learning task. Task may already be running.";
+    doc["status"] = "error";
   }
+  
+  String response;
+  serializeJson(doc, response);
+  request->send(doc["success"] ? 200 : 500, "application/json", response);
 }
 
 void handleIRSend(AsyncWebServerRequest *request) {
+  JsonDocument doc;
+  
   if (!request->hasParam("button", true)) {
-    request->send(400, "text/plain", "Missing button parameter");
+    doc["success"] = false;
+    doc["message"] = "Missing button parameter";
+    doc["error"] = "MISSING_PARAMETER";
+    String response;
+    serializeJson(doc, response);
+    request->send(400, "application/json", response);
     return;
   }
   
@@ -155,18 +142,40 @@ void handleIRSend(AsyncWebServerRequest *request) {
     
     if (code.length() > 0) {
       sendIRButton(button);
-      request->send(200, "text/plain", "✅ Sent " + String(buttonNames[button]) + " command");
+      doc["success"] = true;
+      doc["message"] = "Sent " + String(buttonNames[button]) + " command";
+      doc["button"] = buttonNames[button];
+      doc["buttonIndex"] = buttonIndex;
+      doc["code"] = code;
     } else {
-      request->send(404, "text/plain", "❌ No IR code learned for " + String(buttonNames[button]));
+      doc["success"] = false;
+      doc["message"] = "No IR code learned for " + String(buttonNames[button]);
+      doc["button"] = buttonNames[button];
+      doc["buttonIndex"] = buttonIndex;
+      doc["error"] = "CODE_NOT_LEARNED";
     }
   } else {
-    request->send(400, "text/plain", "❌ Invalid button index");
+    doc["success"] = false;
+    doc["message"] = "Invalid button index";
+    doc["buttonIndex"] = buttonIndex;
+    doc["error"] = "INVALID_BUTTON_INDEX";
   }
+  
+  String response;
+  serializeJson(doc, response);
+  request->send(doc["success"] ? 200 : 400, "application/json", response);
 }
 
 void handleTaskControl(AsyncWebServerRequest *request) {
+  JsonDocument doc;
+  
   if (!request->hasParam("task", true) || !request->hasParam("action", true)) {
-    request->send(400, "text/plain", "Missing task or action parameter");
+    doc["success"] = false;
+    doc["message"] = "Missing task or action parameter";
+    doc["error"] = "MISSING_PARAMETERS";
+    String response;
+    serializeJson(doc, response);
+    request->send(400, "application/json", response);
     return;
   }
   
@@ -176,30 +185,79 @@ void handleTaskControl(AsyncWebServerRequest *request) {
   Serial.printf("Task control request: %s %s\n", taskName.c_str(), action.c_str());
   
   bool success = false;
-  String response = "";
   
   if (taskName == "ir-learning") {
     if (action == "start") {
       success = taskManager.startIRLearningTask();
-      response = success ? "✅ IR Learning task started" : "❌ Failed to start IR Learning task";
+      doc["message"] = success ? "IR Learning task started" : "Failed to start IR Learning task";
     } else if (action == "stop") {
       success = taskManager.stopIRLearningTask();
-      response = success ? "✅ IR Learning task stopped" : "❌ Failed to stop IR Learning task";
+      doc["message"] = success ? "IR Learning task stopped" : "Failed to stop IR Learning task";
+    } else {
+      doc["success"] = false;
+      doc["message"] = "Invalid action for " + taskName + ". Use 'start' or 'stop'";
+      doc["task"] = taskName;
+      doc["action"] = action;
+      doc["error"] = "INVALID_ACTION";
+      String response;
+      serializeJson(doc, response);
+      request->send(400, "application/json", response);
+      return;
     }
   } else if (taskName == "calibration") {
     if (action == "start") {
       success = taskManager.startCalibrationTask();
-      response = success ? "✅ Calibration task started" : "❌ Failed to start Calibration task";
+      doc["message"] = success ? "Calibration task started" : "Failed to start Calibration task";
     } else if (action == "stop") {
       success = taskManager.stopCalibrationTask();
-      response = success ? "✅ Calibration task stopped" : "❌ Failed to stop Calibration task";
+      doc["message"] = success ? "Calibration task stopped" : "Failed to stop Calibration task";
+    } else {
+      doc["success"] = false;
+      doc["message"] = "Invalid action for " + taskName + ". Use 'start' or 'stop'";
+      doc["task"] = taskName;
+      doc["action"] = action;
+      doc["error"] = "INVALID_ACTION";
+      String response;
+      serializeJson(doc, response);
+      request->send(400, "application/json", response);
+      return;
+    }
+  } else if (taskName == "control") {
+    if (action == "start") {
+      success = taskManager.startControlTask();
+      doc["message"] = success ? "AC Control task started" : "Failed to start AC Control task";
+    } else if (action == "stop") {
+      success = taskManager.stopControlTask();
+      doc["message"] = success ? "AC Control task stopped" : "Failed to stop AC Control task";
+    } else {
+      doc["success"] = false;
+      doc["message"] = "Invalid action for " + taskName + ". Use 'start' or 'stop'";
+      doc["task"] = taskName;
+      doc["action"] = action;
+      doc["error"] = "INVALID_ACTION";
+      String response;
+      serializeJson(doc, response);
+      request->send(400, "application/json", response);
+      return;
     }
   } else {
-    request->send(400, "text/plain", "Unknown task: " + taskName);
+    doc["success"] = false;
+    doc["message"] = "Unknown task: " + taskName;
+    doc["task"] = taskName;
+    doc["error"] = "UNKNOWN_TASK";
+    String response;
+    serializeJson(doc, response);
+    request->send(400, "application/json", response);
     return;
   }
   
-  request->send(success ? 200 : 500, "text/plain", response);
+  doc["success"] = success;
+  doc["task"] = taskName;
+  doc["action"] = action;
+  
+  String response;
+  serializeJson(doc, response);
+  request->send(success ? 200 : 500, "application/json", response);
 }
 
 void handleTaskStatus(AsyncWebServerRequest *request) {
@@ -208,8 +266,15 @@ void handleTaskStatus(AsyncWebServerRequest *request) {
 }
 
 void handleStopTask(AsyncWebServerRequest *request) {
+  JsonDocument doc;
+  
   if (!request->hasParam("task", true)) {
-    request->send(400, "text/plain", "Missing task parameter");
+    doc["success"] = false;
+    doc["message"] = "Missing task parameter";
+    doc["error"] = "MISSING_PARAMETER";
+    String response;
+    serializeJson(doc, response);
+    request->send(400, "application/json", response);
     return;
   }
   
@@ -218,15 +283,31 @@ void handleStopTask(AsyncWebServerRequest *request) {
   
   if (taskName == "ir-learning") {
     success = taskManager.stopIRLearningTask();
+    doc["message"] = success ? "IR Learning task stopped" : "Failed to stop IR Learning task";
   } else if (taskName == "calibration") {
     success = taskManager.stopCalibrationTask();
+    doc["message"] = success ? "Calibration task stopped" : "Failed to stop Calibration task";
+  } else {
+    doc["success"] = false;
+    doc["message"] = "Unknown task: " + taskName;
+    doc["task"] = taskName;
+    doc["error"] = "UNKNOWN_TASK";
+    String response;
+    serializeJson(doc, response);
+    request->send(400, "application/json", response);
+    return;
   }
   
-  request->send(success ? 200 : 500, "text/plain", 
-               success ? "Task stopped successfully" : "Failed to stop task");
+  doc["success"] = success;
+  doc["task"] = taskName;
+  
+  String response;
+  serializeJson(doc, response);
+  request->send(success ? 200 : 500, "application/json", response);
 }
 
 void handleSettingsUpdate(AsyncWebServerRequest *request) {
+  JsonDocument doc;
   bool updated = false;
   
   if (request->hasParam("dayTemp", true) && request->hasParam("nightTemp", true)) {
@@ -236,7 +317,17 @@ void handleSettingsUpdate(AsyncWebServerRequest *request) {
       daySetting.temp = dayTemp;
       nightSetting.temp = nightTemp;
       updated = true;
+      doc["dayTemp"] = dayTemp;
+      doc["nightTemp"] = nightTemp;
       Serial.printf("Temperature settings updated: Day=%.1f°C, Night=%.1f°C\n", dayTemp, nightTemp);
+    } else {
+      doc["success"] = false;
+      doc["message"] = "Temperature values must be between 0-40°C";
+      doc["error"] = "INVALID_TEMPERATURE_RANGE";
+      String response;
+      serializeJson(doc, response);
+      request->send(400, "application/json", response);
+      return;
     }
   }
   
@@ -247,13 +338,90 @@ void handleSettingsUpdate(AsyncWebServerRequest *request) {
       daySetting.wind = dayWind;
       nightSetting.wind = nightWind;
       updated = true;
+      doc["dayWind"] = dayWind;
+      doc["nightWind"] = nightWind;
       Serial.printf("Wind settings updated: Day=%d, Night=%d\n", dayWind, nightWind);
+    } else {
+      doc["success"] = false;
+      doc["message"] = "Wind speed must be between 1-5";
+      doc["error"] = "INVALID_WIND_RANGE";
+      String response;
+      serializeJson(doc, response);
+      request->send(400, "application/json", response);
+      return;
     }
   }
   
   if (updated) {
-    request->send(200, "text/plain", "Settings updated successfully");
+    doc["success"] = true;
+    doc["message"] = "Settings updated successfully";
   } else {
-    request->send(400, "text/plain", "Invalid settings provided");
+    doc["success"] = false;
+    doc["message"] = "No valid parameters provided";
+    doc["error"] = "NO_PARAMETERS";
   }
+  
+  String response;
+  serializeJson(doc, response);
+  request->send(doc["success"] ? 200 : 400, "application/json", response);
+}
+
+void handleSystemInfo(AsyncWebServerRequest *request) {
+  JsonDocument doc;
+  
+  // Current system status
+  doc["currentTemp"] = currentTemp;
+  doc["acOn"] = acOn;
+  
+  // Time and mode
+  time_t now = time(nullptr);
+  struct tm* timeinfo = localtime(&now);
+  String mode = (timeinfo->tm_hour >= daySetting.startHour && timeinfo->tm_hour < daySetting.endHour) ? "Day" : "Night";
+  doc["mode"] = mode;
+  doc["currentHour"] = timeinfo->tm_hour;
+  
+  // System info
+  JsonObject system = doc["system"].to<JsonObject>();
+  system["freeHeap"] = ESP.getFreeHeap();
+  system["uptime"] = millis();
+  system["activeTasks"] = uxTaskGetNumberOfTasks();
+  system["chipCores"] = ESP.getChipCores();
+  system["cpuFreq"] = ESP.getCpuFreqMHz();
+  system["flashSize"] = ESP.getFlashChipSize();
+  system["psramSize"] = ESP.getPsramSize();
+  
+  // IR status
+  JsonObject irStatus = doc["ir"].to<JsonObject>();
+  irStatus["ready"] = isIRReadyForControl();
+  irStatus["learnedButtons"] = learningState.learnedButtons;
+  irStatus["totalButtons"] = learningState.totalButtons;
+  irStatus["isLearning"] = learningState.isLearning;
+  if (learningState.isLearning) {
+    irStatus["currentButton"] = learningState.currentButton;
+    irStatus["currentButtonName"] = buttonNames[learningState.currentButton];
+  }
+  
+  String response;
+  serializeJson(doc, response);
+  request->send(200, "application/json", response);
+}
+
+void handleSettings(AsyncWebServerRequest *request) {
+  JsonDocument doc;
+  
+  // Day settings
+  JsonObject daySettings = doc["day"].to<JsonObject>();
+  daySettings["temp"] = daySetting.temp;
+  daySettings["wind"] = daySetting.wind;
+  daySettings["startHour"] = daySetting.startHour;
+  daySettings["endHour"] = daySetting.endHour;
+  
+  // Night settings
+  JsonObject nightSettings = doc["night"].to<JsonObject>();
+  nightSettings["temp"] = nightSetting.temp;
+  nightSettings["wind"] = nightSetting.wind;
+  
+  String response;
+  serializeJson(doc, response);
+  request->send(200, "application/json", response);
 }

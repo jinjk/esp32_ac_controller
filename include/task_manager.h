@@ -27,6 +27,7 @@ class TaskManager {
 private:
     TaskInfo irLearningTaskInfo;
     TaskInfo calibrationTaskInfo;
+    TaskInfo controlTaskInfo;
     
 public:
     TaskManager();
@@ -41,6 +42,12 @@ public:
     bool stopCalibrationTask();
     TaskState getCalibrationState();
     
+    // AC Control Task Management
+    bool startControlTask();
+    bool stopControlTask();
+    TaskState getControlState();
+    bool isControlTaskRunning();
+    
     // General task management
     String getTaskStatus();
     void cleanupFinishedTasks();
@@ -49,12 +56,14 @@ public:
     // Task control functions
     static void irLearningTaskWrapper(void* parameter);
     static void calibrationTaskWrapper(void* parameter);
+    static void controlTaskWrapper(void* parameter);
     
 private:
     // Helper methods
     String getStateString(TaskState state);
     void irLearningTask();
     void calibrationTask();
+    void controlTask();
 };
 
 // Global task manager instance

@@ -157,17 +157,6 @@ void saveIRCodeForButton(IRButton button, const String& code) {
   }
 }
 
-void handleIRLearning() {
-  if (learningState.isLearning) {
-    processIRLearning();
-  } else if (irrecv.decode(&results)) {
-    // Single button learning mode (legacy)
-    String irCode = resultToHexidecimal(&results);
-    Serial.println("IR Code received: " + irCode);
-    irrecv.resume();
-  }
-}
-
 void sendIRCommand(const String& hexCode) {
   if (hexCode.length() > 0) {
     // Convert hex string to uint64_t
@@ -299,36 +288,4 @@ void updateIRControlReadiness() {
   Serial.printf("  Temperature Control: %s\n", hasTempControl ? "OK" : "MISSING");
   Serial.printf("  Fan Control: %s\n", hasFanControl ? "OK" : "MISSING");
   Serial.printf("  Ready for AC Control: %s\n", learningState.isReadyForControl ? "YES" : "NO");
-}
-
-// Legacy function for compatibility
-void saveIRCode(const String& code) {
-  saveIRCodeForButton(IR_POWER_ON, code);
-}
-
-// Legacy function for compatibility  
-String loadIRCode() {
-  return getIRCodeForButton(IR_POWER_ON);
-}
-
-void irLearningTask(void* parameter) {
-  Serial.println("IR Learning Task started on Core " + String(xPortGetCoreID()));
-  
-  // Start the guided learning sequence automatically
-  startIRLearning();
-  
-  for (;;) {
-    if (learningState.isLearning) {
-      processIRLearning();
-    } else {
-      // Learning completed, task can exit gracefully
-      Serial.println("IR Learning Task completed successfully");
-      vTaskDelete(NULL);
-      return;
-    }
-    
-    // Use vTaskDelay instead of delay() for better power efficiency
-    // This allows other tasks to run and puts the core to sleep
-    vTaskDelay(pdMS_TO_TICKS(100)); // 100ms delay for learning mode
-  }
 }

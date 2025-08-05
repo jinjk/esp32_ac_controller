@@ -18,6 +18,8 @@ void handleIRSend(AsyncWebServerRequest *request);
 void handleTaskControl(AsyncWebServerRequest *request);
 void handleTaskStatus(AsyncWebServerRequest *request);
 void handleStopTask(AsyncWebServerRequest *request);
+void handleSystemInfo(AsyncWebServerRequest *request);
+void handleSettings(AsyncWebServerRequest *request);
 
 // Global web server object
 extern AsyncWebServer server;

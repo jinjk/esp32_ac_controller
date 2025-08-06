@@ -199,9 +199,9 @@ String TaskManager::getTaskStatus() {
     irTask["start_time"] = irLearningTaskInfo.startTime;
     irTask["end_time"] = irLearningTaskInfo.endTime;
     irTask["name"] = irLearningTaskInfo.name;
-    irTask["ready_for_control"] = isIRReadyForControl();
-    irTask["learned_buttons"] = learningState.learnedButtons;
-    irTask["total_buttons"] = learningState.totalButtons;
+    irTask["ready_for_control"] = true;  // Gree AC is always ready
+    irTask["learned_buttons"] = 14;  // All Gree AC functions available
+    irTask["total_buttons"] = 14;
     
     // Calibration task status
     JsonObject calTask = doc["calibration"].to<JsonObject>();
@@ -272,34 +272,26 @@ void TaskManager::irLearningTask() {
     // IR learning task implementation
     Serial.println("IR Learning task started");
     
-    // Start the guided learning sequence
-    startIRLearning();
+    // Since we're using Gree AC library, no learning is needed
+    Serial.println("Gree AC: No IR learning required - ready for control");
     
     while (irLearningTaskInfo.state == TASK_RUNNING) {
-        if (learningState.isLearning) {
-            // Process IR learning operations
-            processIRLearning();
-            vTaskDelay(pdMS_TO_TICKS(100)); // Fast polling for IR signals
-        } else {
-            // Learning completed, exit the task
-            Serial.println("IR Learning sequence completed");
-            
-            // Check if we should start the control task now that IR is ready
-            if (isIRReadyForControl() && !isControlTaskRunning()) {
-                Serial.println("🚀 IR learning complete - starting AC Control Task automatically");
-                startControlTask();
-            }
-            
-            break;
+        // Just wait - Gree AC is always ready
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        Serial.println("Gree AC: Ready for control");
+        
+        // Check if we should start the control task now that IR is ready
+        if (!isControlTaskRunning()) {
+            Serial.println("🚀 Gree AC ready - starting AC Control Task automatically");
+            startControlTask();
         }
+        
+        // Exit after showing ready status
+        break;
     }
     
-    // Ensure learning is stopped if task was stopped externally
-    if (learningState.isLearning) {
-        stopIRLearning();
-    }
-    
-    Serial.println("IR Learning task finished");
+    // No learning cleanup needed for Gree AC
+    Serial.println("Gree AC task finished - AC ready for control");
     irLearningTaskInfo.state = TASK_STOPPED;
     vTaskDelete(nullptr);
 }

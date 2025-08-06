@@ -4,6 +4,9 @@
 #include <SPIFFS.h>
 #include <ArduinoJson.h>
 
+// Forward declarations
+void handleACControl(AsyncWebServerRequest *request);
+
 // Global web server object
 AsyncWebServer server(80);
 
@@ -44,8 +47,7 @@ void setupWebServer() {
   });
 
   // REST API endpoints
-  server.on("/api/ir/learn", HTTP_POST, handleIRLearn);
-  server.on("/api/ir/send", HTTP_POST, handleIRSend);
+  server.on("/api/ac/control", HTTP_POST, handleACControl);
   server.on("/api/settings", HTTP_POST, handleSettingsUpdate);
   server.on("/api/tasks", HTTP_POST, handleTaskControl);
   server.on("/api/tasks/status", HTTP_GET, handleTaskStatus);
@@ -101,31 +103,12 @@ String getWebContent() {
   return html;
 }
 
-void handleIRLearn(AsyncWebServerRequest *request) {
+void handleACControl(AsyncWebServerRequest *request) {
   JsonDocument doc;
   
-  // Start IR learning task dynamically
-  if (taskManager.startIRLearningTask()) {
-    doc["success"] = true;
-    doc["message"] = "IR learning task started. Point remote at device and press button.";
-    doc["status"] = "started";
-  } else {
+  if (!request->hasParam("action", true)) {
     doc["success"] = false;
-    doc["message"] = "Failed to start IR learning task. Task may already be running.";
-    doc["status"] = "error";
-  }
-  
-  String response;
-  serializeJson(doc, response);
-  request->send(doc["success"] ? 200 : 500, "application/json", response);
-}
-
-void handleIRSend(AsyncWebServerRequest *request) {
-  JsonDocument doc;
-  
-  if (!request->hasParam("button", true)) {
-    doc["success"] = false;
-    doc["message"] = "Missing button parameter";
+    doc["message"] = "Missing action parameter";
     doc["error"] = "MISSING_PARAMETER";
     String response;
     serializeJson(doc, response);
@@ -133,37 +116,68 @@ void handleIRSend(AsyncWebServerRequest *request) {
     return;
   }
   
-  String buttonStr = request->getParam("button", true)->value();
-  int buttonIndex = buttonStr.toInt();
+  String action = request->getParam("action", true)->value();
+  bool success = false;
   
-  if (buttonIndex >= 0 && buttonIndex < 14) {
-    IRButton button = (IRButton)buttonIndex;
-    String code = getIRCodeForButton(button);
-    
-    if (code.length() > 0) {
-      sendIRButton(button);
-      doc["success"] = true;
-      doc["message"] = "Sent " + String(buttonNames[button]) + " command";
-      doc["button"] = buttonNames[button];
-      doc["buttonIndex"] = buttonIndex;
-      doc["code"] = code;
+  if (action == "power_on") {
+    greeAC.powerOn();
+    success = true;
+    doc["message"] = "AC powered ON";
+  } else if (action == "power_off") {
+    greeAC.powerOff();
+    success = true;
+    doc["message"] = "AC powered OFF";
+  } else if (action == "temp_up") {
+    uint8_t currentTemp = greeAC.getTemperature();
+    if (currentTemp < 30) {
+      greeAC.setTemperature(currentTemp + 1);
+      greeAC.sendCommand();
+      success = true;
+      doc["message"] = "Temperature increased to " + String(currentTemp + 1) + "°C";
     } else {
-      doc["success"] = false;
-      doc["message"] = "No IR code learned for " + String(buttonNames[button]);
-      doc["button"] = buttonNames[button];
-      doc["buttonIndex"] = buttonIndex;
-      doc["error"] = "CODE_NOT_LEARNED";
+      doc["message"] = "Temperature already at maximum (30°C)";
     }
+  } else if (action == "temp_down") {
+    uint8_t currentTemp = greeAC.getTemperature();
+    if (currentTemp > 16) {
+      greeAC.setTemperature(currentTemp - 1);
+      greeAC.sendCommand();
+      success = true;
+      doc["message"] = "Temperature decreased to " + String(currentTemp - 1) + "°C";
+    } else {
+      doc["message"] = "Temperature already at minimum (16°C)";
+    }
+  } else if (action == "fan_cycle") {
+    uint8_t currentFan = greeAC.getFanSpeed();
+    uint8_t nextFan = (currentFan + 1) % 4; // 0=Auto, 1=Low, 2=Med, 3=High
+    greeAC.setFanSpeed(nextFan);
+    greeAC.sendCommand();
+    success = true;
+    String fanNames[] = {"Auto", "Low", "Medium", "High"};
+    doc["message"] = "Fan speed set to " + String(fanNames[nextFan]);
+  } else if (action == "swing_toggle") {
+    bool currentSwing = greeAC.getSwingV();
+    greeAC.setSwingV(!currentSwing);
+    greeAC.sendCommand();
+    success = true;
+    doc["message"] = "Swing " + String(!currentSwing ? "ON" : "OFF");
   } else {
     doc["success"] = false;
-    doc["message"] = "Invalid button index";
-    doc["buttonIndex"] = buttonIndex;
-    doc["error"] = "INVALID_BUTTON_INDEX";
+    doc["message"] = "Unknown action: " + action;
+    doc["error"] = "INVALID_ACTION";
+    String response;
+    serializeJson(doc, response);
+    request->send(400, "application/json", response);
+    return;
   }
+  
+  doc["success"] = success;
+  doc["action"] = action;
+  doc["acState"] = greeAC.getStateString();
   
   String response;
   serializeJson(doc, response);
-  request->send(doc["success"] ? 200 : 400, "application/json", response);
+  request->send(success ? 200 : 400, "application/json", response);
 }
 
 void handleTaskControl(AsyncWebServerRequest *request) {
@@ -186,25 +200,7 @@ void handleTaskControl(AsyncWebServerRequest *request) {
   
   bool success = false;
   
-  if (taskName == "ir-learning") {
-    if (action == "start") {
-      success = taskManager.startIRLearningTask();
-      doc["message"] = success ? "IR Learning task started" : "Failed to start IR Learning task";
-    } else if (action == "stop") {
-      success = taskManager.stopIRLearningTask();
-      doc["message"] = success ? "IR Learning task stopped" : "Failed to stop IR Learning task";
-    } else {
-      doc["success"] = false;
-      doc["message"] = "Invalid action for " + taskName + ". Use 'start' or 'stop'";
-      doc["task"] = taskName;
-      doc["action"] = action;
-      doc["error"] = "INVALID_ACTION";
-      String response;
-      serializeJson(doc, response);
-      request->send(400, "application/json", response);
-      return;
-    }
-  } else if (taskName == "calibration") {
+  if (taskName == "calibration") {
     if (action == "start") {
       success = taskManager.startCalibrationTask();
       doc["message"] = success ? "Calibration task started" : "Failed to start Calibration task";
@@ -390,16 +386,12 @@ void handleSystemInfo(AsyncWebServerRequest *request) {
   system["flashSize"] = ESP.getFlashChipSize();
   system["psramSize"] = ESP.getPsramSize();
   
-  // IR status
+  // IR status (Gree AC is always ready)
   JsonObject irStatus = doc["ir"].to<JsonObject>();
-  irStatus["ready"] = isIRReadyForControl();
-  irStatus["learnedButtons"] = learningState.learnedButtons;
-  irStatus["totalButtons"] = learningState.totalButtons;
-  irStatus["isLearning"] = learningState.isLearning;
-  if (learningState.isLearning) {
-    irStatus["currentButton"] = learningState.currentButton;
-    irStatus["currentButtonName"] = buttonNames[learningState.currentButton];
-  }
+  irStatus["ready"] = true;  // Gree AC is always ready
+  irStatus["learnedButtons"] = 14;  // All Gree AC functions available
+  irStatus["totalButtons"] = 14;
+  irStatus["isLearning"] = false;  // No learning needed
   
   String response;
   serializeJson(doc, response);

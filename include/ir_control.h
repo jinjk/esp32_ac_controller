@@ -2,84 +2,79 @@
 #define IR_CONTROL_H
 
 #include <IRremoteESP8266.h>
-#include <IRrecv.h>
 #include <IRsend.h>
-#include <IRutils.h>
-#include <Preferences.h>
+#include <ir_Gree.h>
 #include "config.h"
 
-// IR Button mapping enum (must be declared before function declarations)
-enum IRButton {
-    IR_POWER_ON,
-    IR_POWER_OFF,
-    IR_TEMP_UP,
-    IR_TEMP_DOWN,
-    IR_FAN_LOW,
-    IR_FAN_MED,
-    IR_FAN_HIGH,
-    IR_MODE_COOL,
-    IR_MODE_HEAT,
-    IR_MODE_AUTO,
-    IR_SWING_ON,
-    IR_SWING_OFF,
-    IR_TIMER_ON,
-    IR_TIMER_OFF
+// Gree AC Control Interface
+class GreeACController {
+private:
+    IRGreeAC ac;
+    IRsend irsend;
+    bool isInitialized;
+    bool _isOn;
+
+public:
+    GreeACController();
+    void init();
+    
+    // Basic AC Controls
+    void powerOn();
+    void powerOff();
+    bool isPowerOn();
+    
+    // Temperature Control
+    void setTemperature(uint8_t temp);
+    uint8_t getTemperature();
+    
+    // Fan Control
+    void setFanSpeed(uint8_t speed); // 0=Auto, 1=Low, 2=Med, 3=High
+    uint8_t getFanSpeed();
+    
+    // Mode Control
+    void setMode(uint8_t mode); // 0=Auto, 1=Cool, 2=Dry, 3=Fan, 4=Heat
+    uint8_t getMode();
+    
+    // Swing Control
+    void setSwingV(bool enable);
+    void setSwingH(bool enable);
+    bool getSwingV();
+    bool getSwingH();
+    
+    // Timer Control
+    void setTimer(uint16_t minutes);
+    uint16_t getTimer();
+    void clearTimer();
+    
+    // Apply Settings
+    void applySettings(const ACSetting& setting);
+    void sendCommand();
+    
+    // Status
+    bool isReady();
+    String getStateString();
 };
 
-// IR control functions
+// Simplified AC Setting structure for Gree
+struct GreeACSetting {
+    bool power;
+    uint8_t temperature;  // 16-30°C
+    uint8_t fanSpeed;     // 0=Auto, 1=Low, 2=Med, 3=High  
+    uint8_t mode;         // 0=Auto, 1=Cool, 2=Dry, 3=Fan, 4=Heat
+    bool swingV;
+    bool swingH;
+    uint16_t timer;       // minutes, 0=off
+};
+
+// Global AC controller instance
+extern GreeACController greeAC;
+
+// Simplified API functions (backward compatibility)
 void initIR();
-void loadAllIRCodes();
-int countLearnedButtons();
-String getIRCodeForButton(IRButton button);
-String getButtonPrefsKey(IRButton button);
-void saveIRCodeForButton(IRButton button, const String& code);
-void sendIRCommand(const String& hexCode);
-void sendIRButton(IRButton button);
-void startIRLearning();
-void stopIRLearning();
-bool processIRLearning();
-void moveToNextLearningStep();
 void applyACSetting(const ACSetting& setting);
-bool isIRReadyForControl();                 // Check if IR system has enough codes for AC control
-void updateIRControlReadiness();            // Update the readiness flag based on learned codes
+bool isIRReadyForControl();
 
-// IR Code storage structure
-struct IRCodeMap {
-    String powerOn;
-    String powerOff;
-    String tempUp;
-    String tempDown;
-    String fanLow;
-    String fanMed;
-    String fanHigh;
-    String modeCool;
-    String modeHeat;
-    String modeAuto;
-    String swingOn;
-    String swingOff;
-    String timerOn;
-    String timerOff;
-};
-
-// IR learning state
-struct IRLearningState {
-  bool isLearning;
-  IRButton currentButton;
-  int learnedButtons;
-  int totalButtons;
-  unsigned long stepStartTime;
-  bool isReadyForControl;  // Flag to indicate if enough codes are learned for AC control
-};
-
-// Global IR objects and state
-extern IRCodeMap irCodes;
-extern IRLearningState learningState;
-extern const char* buttonNames[];
-
-// Global IR objects
-extern IRrecv irrecv;
-extern IRsend irsend;
-extern decode_results results;
-extern Preferences preferences;
+// Convert legacy AC settings to Gree format
+GreeACSetting convertToGreeSettings(const ACSetting& setting);
 
 #endif

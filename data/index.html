@@ -121,7 +121,6 @@
             fetch('/api/tasks/status')
             .then(response => response.json())
             .then(data => {
-                updateTaskStatus('ir-learning', data.ir_learning);
                 updateTaskStatus('calibration', data.calibration);
                 updateTaskStatus('control', data.control);
             })
@@ -205,33 +204,32 @@
             });
         }
         
-        function sendIRButton(buttonIndex) {
-            if (!irReadyForControl) {
-                showStatus('⚠️ IR system not ready. Please complete IR learning first.', false);
-                return;
-            }
-            
-            fetch('/api/ir/send', {
+        function sendACCommand(action) {
+            fetch('/api/ac/control', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'button=' + buttonIndex
+                body: 'action=' + action
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
                     showStatus('✅ ' + data.message, true);
+                    // Update AC status display if available
+                    if (data.acState) {
+                        console.log('AC State:', data.acState);
+                    }
                 } else {
                     showStatus('❌ ' + data.message, false);
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                showStatus('❌ Error sending IR command', false);
+                showStatus('❌ Error sending AC command', false);
             });
         }
         
         function showStatus(message, isSuccess) {
-            const status = document.getElementById('ir-status');
+            const status = document.getElementById('ac-status');
             status.textContent = message;
             status.style.display = 'block';
             status.style.backgroundColor = isSuccess ? '#d4edda' : '#f8d7da';
@@ -293,19 +291,10 @@
     <div class="task-controller">
         <h3>🎮 Task Controller</h3>
         
-        <div id="ir-learning" class="task-item task-stopped">
-            <div>
-                <span class="status-indicator status-stopped"></span>
-                <strong>📡 IR Learning</strong><br>
-                <small class="task-status">Stopped</small>
-            </div>
-            <button class="btn btn-success task-btn" onclick="controlTask('ir-learning', this.textContent.toLowerCase())">Start</button>
-        </div>
-        
         <div id="calibration" class="task-item task-stopped">
             <div>
                 <span class="status-indicator status-stopped"></span>
-                <strong>🔧 Sensor Calibration</strong><br>
+                <strong>� Sensor Calibration</strong><br>
                 <small class="task-status">Stopped</small>
             </div>
             <button class="btn btn-success task-btn" onclick="controlTask('calibration', this.textContent.toLowerCase())">Start</button>
@@ -322,6 +311,18 @@
     </div>
     
     <div class="grid">
+        <div>
+            <h3>🌬️ Gree AC Control</h3>
+            <div class="control-group" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 20px;">
+                <button class="btn btn-primary" onclick="sendACCommand('power_on')">⚡ Power ON</button>
+                <button class="btn btn-secondary" onclick="sendACCommand('power_off')">⭕ Power OFF</button>
+                <button class="btn btn-warning" onclick="sendACCommand('temp_up')">🔥 Temp UP</button>
+                <button class="btn btn-warning" onclick="sendACCommand('temp_down')">❄️ Temp DOWN</button>
+                <button class="btn btn-success" onclick="sendACCommand('fan_cycle')">💨 Fan Speed</button>
+                <button class="btn btn-success" onclick="sendACCommand('swing_toggle')">↔️ Swing Toggle</button>
+            </div>
+            <div id="ac-status" style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 5px; display: none;"></div>
+        </div>
         <div>
             <h3>☀️ Daytime Settings (8AM - 7PM)</h3>
             <form onsubmit="updateSettings(event, 'day')" method="post">
@@ -351,27 +352,6 @@
                 <button type="submit" class="btn btn-primary">💾 Save Night Settings</button>
             </form>
         </div>
-    </div>
-    
-    <div style="margin-top: 20px;">
-        <h3>🎯 IR Button Test</h3>
-        <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
-            <button class="btn btn-secondary ir-control-btn" onclick="sendIRButton(0)">⚡ Power ON</button>
-            <button class="btn btn-secondary ir-control-btn" onclick="sendIRButton(1)">⭕ Power OFF</button>
-            <button class="btn btn-secondary ir-control-btn" onclick="sendIRButton(2)">🔥 Temp UP</button>
-            <button class="btn btn-secondary ir-control-btn" onclick="sendIRButton(3)">❄️ Temp DOWN</button>
-            <button class="btn btn-secondary ir-control-btn" onclick="sendIRButton(4)">💨 Fan LOW</button>
-            <button class="btn btn-secondary ir-control-btn" onclick="sendIRButton(5)">🌪️ Fan MED</button>
-            <button class="btn btn-secondary ir-control-btn" onclick="sendIRButton(6)">🌊 Fan HIGH</button>
-            <button class="btn btn-secondary ir-control-btn" onclick="sendIRButton(7)">❄️ Cool Mode</button>
-            <button class="btn btn-secondary ir-control-btn" onclick="sendIRButton(8)">🔥 Heat Mode</button>
-            <button class="btn btn-secondary ir-control-btn" onclick="sendIRButton(9)">🤖 Auto Mode</button>
-            <button class="btn btn-secondary ir-control-btn" onclick="sendIRButton(10)">↔️ Swing ON</button>
-            <button class="btn btn-secondary ir-control-btn" onclick="sendIRButton(11)">⏸️ Swing OFF</button>
-            <button class="btn btn-secondary ir-control-btn" onclick="sendIRButton(12)">⏰ Timer ON</button>
-            <button class="btn btn-secondary ir-control-btn" onclick="sendIRButton(13)">⏱️ Timer OFF</button>
-        </div>
-        <div id="ir-status" style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 5px; display: none;"></div>
     </div>
 </div>
 </body>

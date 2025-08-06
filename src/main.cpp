@@ -1,5 +1,6 @@
 // ===== PlatformIO Project: ESP32-S3 AC Controller (Modular Design) =====
 #include <Arduino.h>
+#include <WiFi.h>
 
 // Include all module headers
 #include "config.h"

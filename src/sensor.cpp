@@ -1,4 +1,5 @@
 #include "sensor.h"
+#include <Adafruit_SHT31.h>
 
 // Global sensor objects
 Adafruit_SHT31 sht31 = Adafruit_SHT31();

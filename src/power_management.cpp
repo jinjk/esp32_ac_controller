@@ -2,6 +2,8 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <esp_wifi.h>
+#include <esp_pm.h>
+#include <esp_sleep.h>
 
 PowerConfig powerConfig;
 

@@ -1,11 +1,11 @@
 #ifndef WEB_SERVER_H
 #define WEB_SERVER_H
 
-#include <WiFi.h>
-#include <AsyncTCP.h>
-#include <ESPAsyncWebServer.h>
-#include <SPIFFS.h>
 #include "config.h"
+
+// Forward declarations
+class AsyncWebServerRequest;
+class AsyncWebServer;
 
 // Web server functions
 void initWiFi();

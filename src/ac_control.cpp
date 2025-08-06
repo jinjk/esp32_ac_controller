@@ -1,8 +1,9 @@
-#include <IRremoteESP8266.h>
-#include <ir_Gree.h>
 #include "ac_control.h"
 #include "sensor.h"
 #include "ir_control.h"
+#include <IRremoteESP8266.h>
+#include <ir_Gree.h>
+#include <time.h>
 
 void initTime() {
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);

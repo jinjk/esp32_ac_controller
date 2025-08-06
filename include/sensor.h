@@ -1,8 +1,10 @@
 #ifndef SENSOR_H
 #define SENSOR_H
 
-#include <Adafruit_SHT31.h>
 #include "config.h"
+
+// Forward declarations
+class Adafruit_SHT31;
 
 // Sensor management functions
 void initSensors();

@@ -1,7 +1,6 @@
 #ifndef AC_CONTROL_H
 #define AC_CONTROL_H
 
-#include <time.h>
 #include "config.h"
 
 // AC control functions

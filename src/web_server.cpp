@@ -1,6 +1,9 @@
 #include "web_server.h"
 #include "task_manager.h"
 #include "ir_control.h"
+#include <WiFi.h>
+#include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
 #include <SPIFFS.h>
 #include <ArduinoJson.h>
 

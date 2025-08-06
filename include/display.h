@@ -1,10 +1,10 @@
 #ifndef DISPLAY_H
 #define DISPLAY_H
 
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
-#include <Wire.h>
 #include "config.h"
+
+// Forward declarations
+class Adafruit_SSD1306;
 
 // Display management functions
 void initDisplay();

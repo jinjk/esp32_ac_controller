@@ -11,66 +11,11 @@ TaskManager taskManager;
 // Constructor
 TaskManager::TaskManager() {
     // Initialize task info structures
-    calibrationTaskInfo.handle = nullptr;
-    calibrationTaskInfo.state = TASK_STOPPED;
-    calibrationTaskInfo.startTime = 0;
-    calibrationTaskInfo.endTime = 0;
-    calibrationTaskInfo.name = "Calibration";
-    
     controlTaskInfo.handle = nullptr;
     controlTaskInfo.state = TASK_STOPPED;
     controlTaskInfo.startTime = 0;
     controlTaskInfo.endTime = 0;
     controlTaskInfo.name = "AC Control";
-}
-
-// Calibration Task Functions
-bool TaskManager::startCalibrationTask() {
-    if (calibrationTaskInfo.state != TASK_STOPPED) {
-        return false; // Task already running or starting
-    }
-    
-    calibrationTaskInfo.state = TASK_STARTING;
-    calibrationTaskInfo.startTime = millis();
-    
-    BaseType_t result = xTaskCreate(
-        calibrationTaskWrapper,
-        "calibration_task",
-        4096,
-        this,
-        1,
-        &calibrationTaskInfo.handle
-    );
-    
-    if (result == pdPASS) {
-        calibrationTaskInfo.state = TASK_RUNNING;
-        return true;
-    } else {
-        calibrationTaskInfo.state = TASK_STOPPED;
-        calibrationTaskInfo.handle = nullptr;
-        return false;
-    }
-}
-
-bool TaskManager::stopCalibrationTask() {
-    if (calibrationTaskInfo.state == TASK_STOPPED) {
-        return true; // Already stopped
-    }
-    
-    calibrationTaskInfo.state = TASK_STOPPING;
-    
-    if (calibrationTaskInfo.handle != nullptr) {
-        vTaskDelete(calibrationTaskInfo.handle);
-        calibrationTaskInfo.handle = nullptr;
-    }
-    
-    calibrationTaskInfo.state = TASK_STOPPED;
-    calibrationTaskInfo.endTime = millis();
-    return true;
-}
-
-TaskState TaskManager::getCalibrationState() {
-    return calibrationTaskInfo.state;
 }
 
 // AC Control Task Functions
@@ -139,13 +84,6 @@ bool TaskManager::isControlTaskRunning() {
 String TaskManager::getTaskStatus() {
     JsonDocument doc;
     
-    // Calibration task status
-    JsonObject calTask = doc["calibration"].to<JsonObject>();
-    calTask["state"] = getStateString(calibrationTaskInfo.state);
-    calTask["start_time"] = calibrationTaskInfo.startTime;
-    calTask["end_time"] = calibrationTaskInfo.endTime;
-    calTask["name"] = calibrationTaskInfo.name;
-    
     // Control task status
     JsonObject controlTask = doc["control"].to<JsonObject>();
     controlTask["state"] = getStateString(controlTaskInfo.state);
@@ -161,18 +99,14 @@ String TaskManager::getTaskStatus() {
 
 void TaskManager::cleanupFinishedTasks() {
     // Clean up any finished tasks
-    if (calibrationTaskInfo.state == TASK_STOPPED && calibrationTaskInfo.handle != nullptr) {
-        calibrationTaskInfo.handle = nullptr;
-    }
-    
     if (controlTaskInfo.state == TASK_STOPPED && controlTaskInfo.handle != nullptr) {
         controlTaskInfo.handle = nullptr;
     }
 }
 
 bool TaskManager::isAnyTaskRunning() {
-    return (calibrationTaskInfo.state == TASK_RUNNING || 
-            calibrationTaskInfo.state == TASK_STARTING);
+    return controlTaskInfo.state == TASK_RUNNING || 
+           controlTaskInfo.state == TASK_STARTING;
 }
 
 String TaskManager::getStateString(TaskState state) {
@@ -186,35 +120,12 @@ String TaskManager::getStateString(TaskState state) {
 }
 
 // Static wrapper functions for FreeRTOS tasks
-void TaskManager::calibrationTaskWrapper(void* parameter) {
-    TaskManager* manager = static_cast<TaskManager*>(parameter);
-    manager->calibrationTask();
-}
-
 void TaskManager::controlTaskWrapper(void* parameter) {
     TaskManager* manager = static_cast<TaskManager*>(parameter);
     manager->controlTask();
 }
 
 // Task implementation functions
-void TaskManager::calibrationTask() {
-    // Calibration task implementation
-    Serial.println("Calibration task started");
-    
-    while (calibrationTaskInfo.state == TASK_RUNNING) {
-        // Perform sensor calibration operations
-        // Note: Sensor reading functionality would be implemented here
-        // when the sensor system is properly initialized
-        Serial.println("Calibration task running...");
-        
-        vTaskDelay(pdMS_TO_TICKS(1000)); // Check every second
-    }
-    
-    Serial.println("Calibration task finished");
-    calibrationTaskInfo.state = TASK_STOPPED;
-    vTaskDelete(nullptr);
-}
-
 void TaskManager::controlTask() {
     // Control task implementation - calls the existing controlTask function
     Serial.println("AC Control task started via Task Manager");

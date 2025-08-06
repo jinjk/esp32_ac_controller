@@ -203,25 +203,8 @@ void handleTaskControl(AsyncWebServerRequest *request) {
   
   bool success = false;
   
-  if (taskName == "calibration") {
-    if (action == "start") {
-      success = taskManager.startCalibrationTask();
-      doc["message"] = success ? "Calibration task started" : "Failed to start Calibration task";
-    } else if (action == "stop") {
-      success = taskManager.stopCalibrationTask();
-      doc["message"] = success ? "Calibration task stopped" : "Failed to stop Calibration task";
-    } else {
-      doc["success"] = false;
-      doc["message"] = "Invalid action for " + taskName + ". Use 'start' or 'stop'";
-      doc["task"] = taskName;
-      doc["action"] = action;
-      doc["error"] = "INVALID_ACTION";
-      String response;
-      serializeJson(doc, response);
-      request->send(400, "application/json", response);
-      return;
-    }
-  } else if (taskName == "control") {
+  // Note: Calibration task removed. Only AC control task supported.
+  if (taskName == "control") {
     if (action == "start") {
       success = taskManager.startControlTask();
       doc["message"] = success ? "AC Control task started" : "Failed to start AC Control task";
@@ -280,26 +263,14 @@ void handleStopTask(AsyncWebServerRequest *request) {
   String taskName = request->getParam("task", true)->value();
   bool success = false;
   
-  if (taskName == "calibration") {
-    success = taskManager.stopCalibrationTask();
-    doc["message"] = success ? "Calibration task stopped" : "Failed to stop Calibration task";
-  } else {
-    doc["success"] = false;
-    doc["message"] = "Unknown task: " + taskName + " (Note: IR learning not supported with Gree AC)";
-    doc["task"] = taskName;
-    doc["error"] = "UNKNOWN_TASK";
-    String response;
-    serializeJson(doc, response);
-    request->send(400, "application/json", response);
-    return;
-  }
-  
-  doc["success"] = success;
+  // Note: Only control task stop is supported. IR learning and calibration removed.
+  doc["success"] = false;
+  doc["message"] = "Task stopping not supported. Only AC Control task runs continuously. (IR learning and calibration removed)";
   doc["task"] = taskName;
-  
+  doc["error"] = "TASK_STOPPING_NOT_SUPPORTED";
   String response;
   serializeJson(doc, response);
-  request->send(success ? 200 : 500, "application/json", response);
+  request->send(400, "application/json", response);
 }
 
 void handleSettingsUpdate(AsyncWebServerRequest *request) {

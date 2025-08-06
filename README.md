@@ -4,9 +4,9 @@
 
 Design and implement a **smart AC controller** using an **ESP32-S3 (32 N16R8)** development board. The system will:
 
-- Read temperature and humidity from a digital sensor.
+- Read temperature and humidity from a digital sensor (SHT31 - factory calibrated).
 - Automatically control an air conditioner based on time and temperature.
-- Support IR remote learning and IR control of the AC.
+- Control Gree AC units via built-in IR library (no learning required).
 - Offer a web-based UI for configuration.
 - Display system status on a 0.91" OLED screen.
 - Log data to an IoT platform (future extension).

@@ -25,16 +25,10 @@ struct TaskInfo {
 // Task Manager class
 class TaskManager {
 private:
-    TaskInfo calibrationTaskInfo;
     TaskInfo controlTaskInfo;
     
 public:
     TaskManager();
-    
-    // Calibration Task Management  
-    bool startCalibrationTask();
-    bool stopCalibrationTask();
-    TaskState getCalibrationState();
     
     // AC Control Task Management
     bool startControlTask();
@@ -48,13 +42,11 @@ public:
     bool isAnyTaskRunning();
     
     // Task control functions
-    static void calibrationTaskWrapper(void* parameter);
     static void controlTaskWrapper(void* parameter);
     
 private:
     // Helper methods
     String getStateString(TaskState state);
-    void calibrationTask();
     void controlTask();
 };
 

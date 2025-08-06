@@ -338,7 +338,6 @@ void handleSystemInfo(AsyncWebServerRequest *request) {
   
   // Current system status
   doc["currentTemp"] = currentTemp;
-  doc["acOn"] = acOn;
   
   // Time and mode
   time_t now = time(nullptr);

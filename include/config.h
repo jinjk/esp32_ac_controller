@@ -34,7 +34,6 @@ struct ACSetting {
 
 // Global Variables
 extern float currentTemp;
-extern bool acOn;
 extern ACSetting daySetting;
 extern ACSetting nightSetting;
 

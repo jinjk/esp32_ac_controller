@@ -6,7 +6,7 @@
 // AC control functions
 void initTime();
 void controlTask(void* param);
-void logToCloud(float temp, bool acStatus);
+void logToCloud(float temp);
 ACSetting getCurrentSettings();
 
 #endif

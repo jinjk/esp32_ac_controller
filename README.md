@@ -20,10 +20,11 @@ Design and implement a **smart AC controller** using an **ESP32-S3 (32 N16R8)** 
 | ---------------------- | ---------------------------------------- | --------- |
 | **ESP32-S3 Dev Board** | Main controller with Wi-Fi, PSRAM, USB-C | Core MCU  |
 | **SHT3x Sensor**       | Temperature & Humidity (I²C)             | I²C       |
-| **IR Receiver**        | Receives AC remote signals               | GPIO      |
-| **IR Transmitter**     | Sends IR signals to AC                   | GPIO      |
+| **IR Transmitter**     | Sends IR signals to Gree AC              | GPIO      |
 | **Wind Speed Sensor**  | Fan-based rotation encoder               | GPIO      |
 | **0.91" OLED Display** | SSD1306 I²C screen for real-time info    | I²C       |
+
+**Note**: ❌ **IR Receiver removed** - Not required for Gree AC (uses built-in library)
 
 ---
 
@@ -37,9 +38,11 @@ Design and implement a **smart AC controller** using an **ESP32-S3 (32 N16R8)** 
 
 ### Web UI Functions:
 
-- Learn IR code from existing remote.
-- Set day/night temperature and wind level.
-- Hosted by ESP32 using AsyncWebServer.
+- ✅ Set day/night temperature and wind level
+- ✅ Monitor system status and control AC manually  
+- ✅ View real-time sensor data
+- ❌ **IR Learning removed** - Not needed for Gree AC (uses built-in commands)
+- Hosted by ESP32 using AsyncWebServer
 
 ### OLED Display Shows:
 
@@ -85,7 +88,31 @@ lib_deps =
 
 ---
 
-## 📦 Folder Structure
+## � **IR Receiver Removal (Important)**
+
+### **Why No IR Receiver?**
+This project uses the **Gree AC library** from `IRremoteESP8266`, which provides:
+- ✅ **Built-in IR commands** for all Gree AC functions
+- ✅ **No learning required** - works immediately 
+- ✅ **Professional-grade** IR codes (more reliable than captured ones)
+- ✅ **Simplified hardware** - only IR LED needed
+
+### **Hardware Impact**
+- **GPIO 14** now **available for other uses** (was IR_RECV_PIN)
+- **Component savings**: No IR receiver sensor needed
+- **Wiring simplified**: One less component to connect
+
+### **Software Benefits**  
+- **Instant ready** - no learning phase required
+- **Code reduction** - ~500+ lines of IR learning code removed
+- **Memory savings** - no IR code storage needed
+- **Better reliability** - library-tested commands
+
+**📄 See `IR_RECEIVER_REMOVAL.md` for detailed documentation**
+
+---
+
+## 📦 Dependencies
 
 ```
 esp32_ac_controller/

@@ -222,30 +222,3 @@ GreeACSetting convertToGreeSettings(const ACSetting& setting) {
     greeSetting.timer = 0;  // No timer by default
     return greeSetting;
 }
-
-// Helper function to send IR command (legacy compatibility)
-void sendIRCommand(const String& command) {
-    // Parse command and apply appropriate AC setting
-    if (command == "power_on") {
-        greeAC.powerOn();
-    } else if (command == "power_off") {
-        greeAC.powerOff();
-    } else if (command.startsWith("temp_")) {
-        uint8_t temp = command.substring(5).toInt();
-        greeAC.setTemperature(temp);
-    } else if (command.startsWith("fan_")) {
-        uint8_t fan = command.substring(4).toInt();
-        greeAC.setFanSpeed(fan);
-    } else if (command.startsWith("mode_")) {
-        uint8_t mode = command.substring(5).toInt();
-        greeAC.setMode(mode);
-    } else if (command == "swing_v_on") {
-        greeAC.setSwingV(true);
-    } else if (command == "swing_v_off") {
-        greeAC.setSwingV(false);
-    } else if (command == "swing_h_on") {
-        greeAC.setSwingH(true);
-    } else if (command == "swing_h_off") {
-        greeAC.setSwingH(false);
-    }
-}

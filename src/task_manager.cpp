@@ -2,6 +2,7 @@
 #include "config.h"
 #include "ir_control.h"
 #include "sensor.h"
+#include "ac_control.h"
 #include <ArduinoJson.h>
 
 // Global task manager instance
@@ -10,12 +11,6 @@ TaskManager taskManager;
 // Constructor
 TaskManager::TaskManager() {
     // Initialize task info structures
-    irLearningTaskInfo.handle = nullptr;
-    irLearningTaskInfo.state = TASK_STOPPED;
-    irLearningTaskInfo.startTime = 0;
-    irLearningTaskInfo.endTime = 0;
-    irLearningTaskInfo.name = "IR Learning";
-    
     calibrationTaskInfo.handle = nullptr;
     calibrationTaskInfo.state = TASK_STOPPED;
     calibrationTaskInfo.startTime = 0;
@@ -27,55 +22,6 @@ TaskManager::TaskManager() {
     controlTaskInfo.startTime = 0;
     controlTaskInfo.endTime = 0;
     controlTaskInfo.name = "AC Control";
-}
-
-// IR Learning Task Functions
-bool TaskManager::startIRLearningTask() {
-    if (irLearningTaskInfo.state != TASK_STOPPED) {
-        return false; // Task already running or starting
-    }
-    
-    irLearningTaskInfo.state = TASK_STARTING;
-    irLearningTaskInfo.startTime = millis();
-    
-    BaseType_t result = xTaskCreate(
-        irLearningTaskWrapper,
-        "ir_learning_task",
-        4096,
-        this,
-        1,
-        &irLearningTaskInfo.handle
-    );
-    
-    if (result == pdPASS) {
-        irLearningTaskInfo.state = TASK_RUNNING;
-        return true;
-    } else {
-        irLearningTaskInfo.state = TASK_STOPPED;
-        irLearningTaskInfo.handle = nullptr;
-        return false;
-    }
-}
-
-bool TaskManager::stopIRLearningTask() {
-    if (irLearningTaskInfo.state == TASK_STOPPED) {
-        return true; // Already stopped
-    }
-    
-    irLearningTaskInfo.state = TASK_STOPPING;
-    
-    if (irLearningTaskInfo.handle != nullptr) {
-        vTaskDelete(irLearningTaskInfo.handle);
-        irLearningTaskInfo.handle = nullptr;
-    }
-    
-    irLearningTaskInfo.state = TASK_STOPPED;
-    irLearningTaskInfo.endTime = millis();
-    return true;
-}
-
-TaskState TaskManager::getIRLearningState() {
-    return irLearningTaskInfo.state;
 }
 
 // Calibration Task Functions
@@ -193,16 +139,6 @@ bool TaskManager::isControlTaskRunning() {
 String TaskManager::getTaskStatus() {
     JsonDocument doc;
     
-    // IR Learning task status
-    JsonObject irTask = doc["ir_learning"].to<JsonObject>();
-    irTask["state"] = getStateString(irLearningTaskInfo.state);
-    irTask["start_time"] = irLearningTaskInfo.startTime;
-    irTask["end_time"] = irLearningTaskInfo.endTime;
-    irTask["name"] = irLearningTaskInfo.name;
-    irTask["ready_for_control"] = true;  // Gree AC is always ready
-    irTask["learned_buttons"] = 14;  // All Gree AC functions available
-    irTask["total_buttons"] = 14;
-    
     // Calibration task status
     JsonObject calTask = doc["calibration"].to<JsonObject>();
     calTask["state"] = getStateString(calibrationTaskInfo.state);
@@ -225,19 +161,17 @@ String TaskManager::getTaskStatus() {
 
 void TaskManager::cleanupFinishedTasks() {
     // Clean up any finished tasks
-    if (irLearningTaskInfo.state == TASK_STOPPED && irLearningTaskInfo.handle != nullptr) {
-        irLearningTaskInfo.handle = nullptr;
-    }
-    
     if (calibrationTaskInfo.state == TASK_STOPPED && calibrationTaskInfo.handle != nullptr) {
         calibrationTaskInfo.handle = nullptr;
+    }
+    
+    if (controlTaskInfo.state == TASK_STOPPED && controlTaskInfo.handle != nullptr) {
+        controlTaskInfo.handle = nullptr;
     }
 }
 
 bool TaskManager::isAnyTaskRunning() {
-    return (irLearningTaskInfo.state == TASK_RUNNING || 
-            irLearningTaskInfo.state == TASK_STARTING ||
-            calibrationTaskInfo.state == TASK_RUNNING || 
+    return (calibrationTaskInfo.state == TASK_RUNNING || 
             calibrationTaskInfo.state == TASK_STARTING);
 }
 
@@ -252,11 +186,6 @@ String TaskManager::getStateString(TaskState state) {
 }
 
 // Static wrapper functions for FreeRTOS tasks
-void TaskManager::irLearningTaskWrapper(void* parameter) {
-    TaskManager* manager = static_cast<TaskManager*>(parameter);
-    manager->irLearningTask();
-}
-
 void TaskManager::calibrationTaskWrapper(void* parameter) {
     TaskManager* manager = static_cast<TaskManager*>(parameter);
     manager->calibrationTask();
@@ -268,34 +197,6 @@ void TaskManager::controlTaskWrapper(void* parameter) {
 }
 
 // Task implementation functions
-void TaskManager::irLearningTask() {
-    // IR learning task implementation
-    Serial.println("IR Learning task started");
-    
-    // Since we're using Gree AC library, no learning is needed
-    Serial.println("Gree AC: No IR learning required - ready for control");
-    
-    while (irLearningTaskInfo.state == TASK_RUNNING) {
-        // Just wait - Gree AC is always ready
-        vTaskDelay(pdMS_TO_TICKS(1000));
-        Serial.println("Gree AC: Ready for control");
-        
-        // Check if we should start the control task now that IR is ready
-        if (!isControlTaskRunning()) {
-            Serial.println("🚀 Gree AC ready - starting AC Control Task automatically");
-            startControlTask();
-        }
-        
-        // Exit after showing ready status
-        break;
-    }
-    
-    // No learning cleanup needed for Gree AC
-    Serial.println("Gree AC task finished - AC ready for control");
-    irLearningTaskInfo.state = TASK_STOPPED;
-    vTaskDelete(nullptr);
-}
-
 void TaskManager::calibrationTask() {
     // Calibration task implementation
     Serial.println("Calibration task started");
@@ -319,9 +220,7 @@ void TaskManager::controlTask() {
     Serial.println("AC Control task started via Task Manager");
     
     // Call the existing controlTask function from ac_control.cpp
-    // We need to import the function declaration
-    extern void controlTask(void* param);
-    controlTask(nullptr);
+    ::controlTask(nullptr);
     
     // If the control task returns, mark as stopped
     controlTaskInfo.state = TASK_STOPPED;

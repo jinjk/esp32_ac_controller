@@ -280,15 +280,12 @@ void handleStopTask(AsyncWebServerRequest *request) {
   String taskName = request->getParam("task", true)->value();
   bool success = false;
   
-  if (taskName == "ir-learning") {
-    success = taskManager.stopIRLearningTask();
-    doc["message"] = success ? "IR Learning task stopped" : "Failed to stop IR Learning task";
-  } else if (taskName == "calibration") {
+  if (taskName == "calibration") {
     success = taskManager.stopCalibrationTask();
     doc["message"] = success ? "Calibration task stopped" : "Failed to stop Calibration task";
   } else {
     doc["success"] = false;
-    doc["message"] = "Unknown task: " + taskName;
+    doc["message"] = "Unknown task: " + taskName + " (Note: IR learning not supported with Gree AC)";
     doc["task"] = taskName;
     doc["error"] = "UNKNOWN_TASK";
     String response;
@@ -392,9 +389,8 @@ void handleSystemInfo(AsyncWebServerRequest *request) {
   // IR status (Gree AC is always ready)
   JsonObject irStatus = doc["ir"].to<JsonObject>();
   irStatus["ready"] = true;  // Gree AC is always ready
-  irStatus["learnedButtons"] = 14;  // All Gree AC functions available
-  irStatus["totalButtons"] = 14;
-  irStatus["isLearning"] = false;  // No learning needed
+  irStatus["type"] = "Gree AC Library";  // No IR learning - uses built-in library
+  irStatus["receiver_required"] = false;  // No IR receiver needed
   
   String response;
   serializeJson(doc, response);

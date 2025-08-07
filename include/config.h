@@ -51,6 +51,8 @@ struct ACRule {
   float setTemp;             // Target temperature
   int fanSpeed;              // Fan speed (0-3)
   int mode;                  // AC mode (0=cool, 1=heat, 2=dry, 3=fan, 4=auto)
+  int vSwing;                // Vertical swing (0=auto, 1=top, 2=mid, 3=bottom)
+  int hSwing;                // Horizontal swing (0=auto, 1=left, 2=mid, 3=right)
 };
 
 #define MAX_RULES 10

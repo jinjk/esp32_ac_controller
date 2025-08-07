@@ -126,6 +126,59 @@ void GreeACController::setSwingH(bool enable) {
     Serial.printf("AC: Horizontal swing %s\n", enable ? "ON" : "OFF");
 }
 
+// Enhanced swing position control
+void GreeACController::setSwingVPosition(int position) {
+    switch (position) {
+        case 0: // Auto
+            ac.setSwingVertical(true, kGreeSwingAuto);
+            Serial.println("AC: Vertical swing set to Auto");
+            break;
+        case 1: // Top
+            ac.setSwingVertical(false, kGreeSwingUp);
+            Serial.println("AC: Vertical swing set to Top");
+            break;
+        case 2: // Mid
+            ac.setSwingVertical(false, kGreeSwingMiddle);
+            Serial.println("AC: Vertical swing set to Mid");
+            break;
+        case 3: // Bottom
+            ac.setSwingVertical(false, kGreeSwingDown);
+            Serial.println("AC: Vertical swing set to Bottom");
+            break;
+        default:
+            ac.setSwingVertical(true, kGreeSwingAuto);
+            Serial.println("AC: Vertical swing set to Auto (default)");
+            break;
+    }
+    sendCommand();
+}
+
+void GreeACController::setSwingHPosition(int position) {
+    switch (position) {
+        case 0: // Auto
+            ac.setSwingHorizontal(kGreeSwingAuto);
+            Serial.println("AC: Horizontal swing set to Auto");
+            break;
+        case 1: // Left
+            ac.setSwingHorizontal(kGreeSwingHLeft);
+            Serial.println("AC: Horizontal swing set to Left");
+            break;
+        case 2: // Mid
+            ac.setSwingHorizontal(kGreeSwingHMiddle);
+            Serial.println("AC: Horizontal swing set to Mid");
+            break;
+        case 3: // Right
+            ac.setSwingHorizontal(kGreeSwingHRight);
+            Serial.println("AC: Horizontal swing set to Right");
+            break;
+        default:
+            ac.setSwingHorizontal(kGreeSwingAuto);
+            Serial.println("AC: Horizontal swing set to Auto (default)");
+            break;
+    }
+    sendCommand();
+}
+
 bool GreeACController::getSwingV() {
     // Since there's no getSwingVertical, we'll track this state ourselves
     // For now, return false as a safe default

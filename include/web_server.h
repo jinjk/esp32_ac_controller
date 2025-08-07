@@ -12,14 +12,7 @@ void initWiFi();
 void setupWebServer();
 String getWebContent();
 String readFile(String path);
-void handleSettingsUpdate(AsyncWebServerRequest *request);
-void handleIRLearn(AsyncWebServerRequest *request);
-void handleIRSend(AsyncWebServerRequest *request);
-void handleTaskControl(AsyncWebServerRequest *request);
-void handleTaskStatus(AsyncWebServerRequest *request);
-void handleStopTask(AsyncWebServerRequest *request);
 void handleSystemInfo(AsyncWebServerRequest *request);
-void handleSettings(AsyncWebServerRequest *request);
 
 // Rule management functions
 void handleGetRules(AsyncWebServerRequest *request);

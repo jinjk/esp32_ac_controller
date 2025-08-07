@@ -71,8 +71,11 @@ void controlTask(void* param) {
           greeAC.setTemperature((uint8_t)rules[i].setTemp);
           greeAC.setFanSpeed(rules[i].fanSpeed);
           greeAC.setMode(rules[i].mode);
-          Serial.printf("AC ON: %.1f°C, Fan %d, Mode %d\n", 
-                       rules[i].setTemp, rules[i].fanSpeed, rules[i].mode);
+          greeAC.setSwingVPosition(rules[i].vSwing);
+          greeAC.setSwingHPosition(rules[i].hSwing);
+          Serial.printf("AC ON: %.1f°C, Fan %d, Mode %d, VSwing %d, HSwing %d\n", 
+                       rules[i].setTemp, rules[i].fanSpeed, rules[i].mode, 
+                       rules[i].vSwing, rules[i].hSwing);
         } else {
           greeAC.powerOff();
           Serial.println("AC OFF");

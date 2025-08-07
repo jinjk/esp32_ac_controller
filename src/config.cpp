@@ -34,7 +34,9 @@ void initDefaultRules() {
     .acOn = true,
     .setTemp = 27.0,
     .fanSpeed = 3,
-    .mode = 0
+    .mode = 0,
+    .vSwing = 0,  // Auto vertical swing
+    .hSwing = 0   // Auto horizontal swing
   };
   
   // Rule 2: Quiet cooling at night
@@ -49,7 +51,9 @@ void initDefaultRules() {
     .acOn = true,
     .setTemp = 28.0,
     .fanSpeed = 1,
-    .mode = 0
+    .mode = 0,
+    .vSwing = 2,  // Mid vertical swing (less air movement for sleep)
+    .hSwing = 2   // Mid horizontal swing
   };
   
   // Rule 3: Turn off when cool
@@ -64,7 +68,9 @@ void initDefaultRules() {
     .acOn = false,
     .setTemp = 24.0,
     .fanSpeed = 1,
-    .mode = 0
+    .mode = 0,
+    .vSwing = 0,  // Auto (doesn't matter when AC is off)
+    .hSwing = 0   // Auto (doesn't matter when AC is off)
   };
   
   ruleCount = 3;

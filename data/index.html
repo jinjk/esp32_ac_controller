@@ -7,10 +7,6 @@
         body { font-family: Arial, sans-serif; margin: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
         .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
         .status { background: linear-gradient(135deg, #e3ffe7 0%, #d9e7ff 100%); padding: 20px; border-radius: 10px; margin-bottom: 25px; border-left: 5px solid #007bff; }
-        .task-controller { background: linear-gradient(135deg, #fff3e0 0%, #f3e5f5 100%); padding: 20px; border-radius: 10px; margin-bottom: 25px; border-left: 5px solid #ff9800; }
-        .task-item { background: white; margin: 10px 0; padding: 15px; border-radius: 8px; border: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
-        .task-running { border-left: 4px solid #4caf50; background: #f8fff8; }
-        .task-stopped { border-left: 4px solid #9e9e9e; background: #f5f5f5; }
         .form-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
         input { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; box-sizing: border-box; transition: border-color 0.3s; }
@@ -26,20 +22,15 @@
         h2 { color: #333; text-align: center; margin-bottom: 30px; }
         h3 { color: #666; border-bottom: 2px solid #007bff; padding-bottom: 10px; margin-bottom: 20px; }
         .status-indicator { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; }
-        .status-running { background-color: #4caf50; animation: pulse 2s infinite; }
-        .status-stopped { background-color: #9e9e9e; }
         .ir-not-ready { background-color: #ff9800; }
         .ir-ready { background-color: #4caf50; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
-        .warning-banner { background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
-        .warning-banner.hidden { display: none; }
     </style>
     <script>
         let irReadyForControl = false;
         let systemData = {};
-        let settingsData = {};
         
         // Load initial data
         async function loadSystemData() {
@@ -61,18 +52,7 @@
         }
         
         async function loadSettings() {
-            try {
-                const response = await fetch('/api/settings');
-                if (response.ok) {
-                    settingsData = await response.json();
-                    updateSettingsDisplay();
-                } else {
-                    console.error('Failed to load settings:', response.status);
-                }
-            } catch (error) {
-                console.error('Error loading settings:', error);
-                // Keep default form values
-            }
+            // Legacy settings removed - only rule-based control now
         }
         
         function updateSystemDisplay() {
@@ -85,18 +65,6 @@
                 document.getElementById('ac-status').textContent = '❄️ AC Status: ' + (systemData.acOn ? '🟢 ON' : '🔴 OFF');
             }
             
-            if (systemData.mode !== undefined) {
-                document.getElementById('mode-status').textContent = '🕐 Mode: ' + systemData.mode;
-            }
-            
-            // Update IR status
-            if (systemData.ir) {
-                const irData = systemData.ir;
-                const irStatusText = `📡 IR Buttons: ${irData.learnedButtons}/${irData.totalButtons} learned ${irData.ready ? '✅ Ready' : '⚠️ Not Ready'}`;
-                document.getElementById('ir-status-text').innerHTML = irStatusText;
-                updateIRReadiness(irData);
-            }
-            
             // Update system info
             if (systemData.system) {
                 const sys = systemData.system;
@@ -106,102 +74,34 @@
         }
         
         function updateSettingsDisplay() {
-            if (settingsData.day) {
-                document.getElementById('dayTemp').value = settingsData.day.temp;
-                document.getElementById('dayWind').value = settingsData.day.wind;
-            }
-            
-            if (settingsData.night) {
-                document.getElementById('nightTemp').value = settingsData.night.temp;
-                document.getElementById('nightWind').value = settingsData.night.wind;
-            }
+            // Legacy settings removed - only rule-based control now
         }
         
         function updateStatus() {
-            fetch('/api/tasks/status')
-            .then(response => response.json())
-            .then(data => {
-                updateTaskStatus('calibration', data.calibration);
-                updateTaskStatus('control', data.control);
-            })
-            .catch(error => console.error('Error:', error));
-            
-            // Also refresh system data
+            // Only refresh system data now
             loadSystemData();
         }
         
         function updateIRReadiness(irData) {
-            irReadyForControl = irData.ready || false;
+            // Gree AC is always ready - no IR learning needed
+            irReadyForControl = true;
             const warningBanner = document.getElementById('ir-warning-banner');
             const irButtons = document.querySelectorAll('.ir-control-btn');
             
-            if (!irReadyForControl) {
-                warningBanner.classList.remove('hidden');
-                irButtons.forEach(btn => {
-                    btn.disabled = true;
-                    btn.title = 'IR system not ready. Complete IR learning first.';
-                });
-            } else {
-                warningBanner.classList.add('hidden');
-                irButtons.forEach(btn => {
-                    btn.disabled = false;
-                    btn.title = '';
-                });
-            }
+            warningBanner.classList.add('hidden');
+            irButtons.forEach(btn => {
+                btn.disabled = false;
+                btn.title = '';
+            });
         }
         
         function updateTaskStatus(taskId, taskData) {
-            const element = document.getElementById(taskId);
-            if (!element) return;
-            
-            const indicator = element.querySelector('.status-indicator');
-            const status = element.querySelector('.task-status');
-            const button = element.querySelector('.task-btn');
-            
-            const runtime = (Date.now() - (taskData.start_time || 0)) / 1000;
-            const lastDuration = ((taskData.end_time || 0) - (taskData.start_time || 0)) / 1000;
-            
-            if (taskData.state === 'running') {
-                element.className = 'task-item task-running';
-                indicator.className = 'status-indicator status-running';
-                status.textContent = `Running (${Math.floor(runtime)}s)`;
-                button.textContent = 'Stop';
-                button.className = 'btn btn-danger task-btn';
-                button.disabled = false;
-            } else {
-                element.className = 'task-item task-stopped';
-                indicator.className = 'status-indicator status-stopped';
-                status.textContent = `Stopped ${lastDuration > 0 ? `(Last: ${Math.floor(lastDuration)}s)` : ''}`;
-                button.textContent = 'Start';
-                button.className = 'btn btn-success task-btn';
-                button.disabled = false;
-            }
+            // Task status management removed - only rule-based control now
         }
         
         function controlTask(taskName, action) {
-            const formData = new FormData();
-            formData.append('task', taskName);
-            formData.append('action', action);
-            
-            fetch('/api/tasks', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    console.log('✅', data.message);
-                    showStatus(data.message, true);
-                } else {
-                    console.error('❌', data.message);
-                    showStatus(data.message, false);
-                }
-                updateStatus();
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showStatus('❌ Network error', false);
-            });
+            // Task control removed - only rule-based control now
+            showStatus('⚠️ Task control disabled - Use rule-based system instead', false);
         }
         
         function sendACCommand(action) {
@@ -238,34 +138,15 @@
         
         function updateSettings(event, type) {
             event.preventDefault();
-            
-            const formData = new FormData(event.target);
-            
-            fetch('/api/settings', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showStatus('✅ ' + data.message, true);
-                    setTimeout(loadSettings, 500);
-                } else {
-                    showStatus('❌ ' + data.message, false);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showStatus('❌ Error updating settings', false);
-            });
+            // Legacy settings removed - only rule-based control now
+            showStatus('⚠️ Legacy settings disabled - Use rule-based system instead', false);
         }
         
-        setInterval(updateStatus, 2000); // Update every 2 seconds
+        setInterval(loadSystemData, 5000); // Update system data every 5 seconds
         
         // Initialize page
         window.onload = function() {
             loadSystemData();
-            loadSettings();
             updateStatus();
         };
     </script>
@@ -274,41 +155,14 @@
 <div class="container">
     <h2>🌡️ ESP32-S3 AC Controller</h2>
     
-    <div id="ir-warning-banner" class="warning-banner hidden">
-        ⚠️ <strong>IR System Not Ready:</strong> Please complete IR learning before using AC controls. 
-        At minimum, you need Power ON/OFF, Temperature UP/DOWN, and at least one Fan speed.
-    </div>
-    
     <div class="status">
         <p><strong>📊 System Status:</strong></p>
         <p id="temperature-status">🌡️ Temperature: Loading...</p>
         <p id="ac-status">❄️ AC Status: Loading...</p>
-        <p id="mode-status">🕐 Mode: Loading...</p>
-        <p id="ir-status-text">📡 IR Buttons: Loading...</p>
+        <p id="ir-status-text">📡 IR System: Gree AC Library Ready ✅</p>
         <p id="system-info" style="font-size: 0.9em; color: #666;">Loading system info...</p>
     </div>
     
-    <div class="task-controller">
-        <h3>🎮 Task Controller</h3>
-        
-        <div id="calibration" class="task-item task-stopped">
-            <div>
-                <span class="status-indicator status-stopped"></span>
-                <strong>� Sensor Calibration</strong><br>
-                <small class="task-status">Stopped</small>
-            </div>
-            <button class="btn btn-success task-btn" onclick="controlTask('calibration', this.textContent.toLowerCase())">Start</button>
-        </div>
-        
-        <div id="control" class="task-item task-stopped">
-            <div>
-                <span class="status-indicator status-stopped"></span>
-                <strong>❄️ AC Control</strong><br>
-                <small class="task-status">Stopped</small>
-            </div>
-            <button class="btn btn-success task-btn" onclick="controlTask('control', this.textContent.toLowerCase())">Start</button>
-        </div>
-    </div>
     
     <div class="grid">
         <div>
@@ -322,35 +176,6 @@
                 <button class="btn btn-success" onclick="sendACCommand('swing_toggle')">↔️ Swing Toggle</button>
             </div>
             <div id="ac-status" style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 5px; display: none;"></div>
-        </div>
-        <div>
-            <h3>☀️ Daytime Settings (8AM - 7PM)</h3>
-            <form onsubmit="updateSettings(event, 'day')" method="post">
-                <div class="form-group">
-                    <label>🌡️ Temperature (°C):</label>
-                    <input name="dayTemp" id="dayTemp" min="18" max="35" step="0.5" type="number">
-                </div>
-                <div class="form-group">
-                    <label>💨 Wind Speed (1-5):</label>
-                    <input name="dayWind" id="dayWind" min="1" max="5" type="number">
-                </div>
-                <button type="submit" class="btn btn-primary">💾 Save Day Settings</button>
-            </form>
-        </div>
-        
-        <div>
-            <h3>🌙 Nighttime Settings (7PM - 8AM)</h3>
-            <form onsubmit="updateSettings(event, 'night')" method="post">
-                <div class="form-group">
-                    <label>🌡️ Temperature (°C):</label>
-                    <input name="nightTemp" id="nightTemp" min="18" max="35" step="0.5" type="number">
-                </div>
-                <div class="form-group">
-                    <label>💨 Wind Speed (1-5):</label>
-                    <input name="nightWind" id="nightWind" min="1" max="5" type="number">
-                </div>
-                <button type="submit" class="btn btn-primary">💾 Save Night Settings</button>
-            </form>
         </div>
     </div>
 </div>
@@ -452,6 +277,27 @@
                     </select>
                 </div>
                 
+                <div class="grid">
+                    <div class="form-group">
+                        <label>🔄 Vertical Swing:</label>
+                        <select id="rule-v-swing" name="vSwing">
+                            <option value="0">Auto</option>
+                            <option value="1">Top</option>
+                            <option value="2">Mid</option>
+                            <option value="3">Bottom</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>↔️ Horizontal Swing:</label>
+                        <select id="rule-h-swing" name="hSwing">
+                            <option value="0">Auto</option>
+                            <option value="1">Left</option>
+                            <option value="2">Mid</option>
+                            <option value="3">Right</option>
+                        </select>
+                    </div>
+                </div>
+                
                 <div style="text-align: center; margin-top: 20px;">
                     <button type="submit" class="btn btn-primary">💾 Save Rule</button>
                     <button type="button" onclick="deleteCurrentRule()" class="btn btn-danger" id="delete-rule-btn">🗑️ Delete Rule</button>
@@ -491,7 +337,9 @@
             if (rule.acOn) {
                 statusHtml += `🌡️ <strong>Target Temp:</strong> ${rule.setTemp}°C<br>`;
                 statusHtml += `💨 <strong>Fan Speed:</strong> ${['Auto', 'Low', 'Medium', 'High'][rule.fanSpeed] || rule.fanSpeed}<br>`;
-                statusHtml += `🌀 <strong>Mode:</strong> ${['Cool', 'Heat', 'Dry', 'Fan', 'Auto'][rule.mode] || rule.mode}`;
+                statusHtml += `🌀 <strong>Mode:</strong> ${['Cool', 'Heat', 'Dry', 'Fan', 'Auto'][rule.mode] || rule.mode}<br>`;
+                statusHtml += `🔄 <strong>V-Swing:</strong> ${['Auto', 'Top', 'Mid', 'Bottom'][rule.vSwing] || 'Auto'}<br>`;
+                statusHtml += `↔️ <strong>H-Swing:</strong> ${['Auto', 'Left', 'Mid', 'Right'][rule.hSwing] || 'Auto'}`;
             }
         } else {
             statusHtml += `<br>⚠️ <strong>No active rule</strong> - AC unchanged`;
@@ -596,6 +444,8 @@
         document.getElementById('rule-set-temp').value = rule.setTemp;
         document.getElementById('rule-fan-speed').value = rule.fanSpeed;
         document.getElementById('rule-mode').value = rule.mode;
+        document.getElementById('rule-v-swing').value = rule.vSwing || 0;
+        document.getElementById('rule-h-swing').value = rule.hSwing || 0;
         
         // Show modal
         document.getElementById('rule-editor').style.display = 'block';

@@ -42,7 +42,6 @@ void setup() {
   // Create only essential tasks for maximum power efficiency
   // Core 0: Critical AC control task (high priority) - Gree AC is always ready!
   // Core 1: Display task (low priority)
-  // Other tasks (IR Learning, Calibration) are created on-demand via WebUI
   
   // Gree AC is always ready - no learning required!
   taskManager.startControlTask();
@@ -52,7 +51,6 @@ void setup() {
   
   Serial.println("=== ESP32-S3 AC Controller Started Successfully! ===");
   Serial.printf("Web interface available at: http://%s\n", WiFi.localIP().toString().c_str());
-  Serial.println("📱 Use the WebUI to start tasks like Calibration on-demand");
   Serial.println("🎉 Gree AC control ready - No IR learning required!");
   
   Serial.printf("💾 Free heap: %d bytes, Active tasks: %d\n", ESP.getFreeHeap(), uxTaskGetNumberOfTasks());

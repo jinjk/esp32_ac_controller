@@ -38,6 +38,8 @@ public:
     // Swing Control
     void setSwingV(bool enable);
     void setSwingH(bool enable);
+    void setSwingVPosition(int position); // 0=auto, 1=top, 2=mid, 3=bottom
+    void setSwingHPosition(int position); // 0=auto, 1=left, 2=mid, 3=right
     bool getSwingV();
     bool getSwingH();
     

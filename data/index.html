@@ -354,5 +354,348 @@
         </div>
     </div>
 </div>
+
+<!-- Rule Management Section -->
+<div class="container">
+    <h2>🎯 Rule-Based AC Control</h2>
+    
+    <!-- Active Rule Display -->
+    <div class="status">
+        <h3>📋 Current Status</h3>
+        <div id="active-rule-status">Loading...</div>
+        <button onclick="loadActiveRule()" class="btn btn-secondary">🔄 Refresh Status</button>
+    </div>
+    
+    <!-- Rule List -->
+    <div class="task-controller">
+        <h3>📝 AC Control Rules</h3>
+        <div id="rules-list">Loading rules...</div>
+        <button onclick="loadRules()" class="btn btn-secondary">🔄 Refresh Rules</button>
+        <button onclick="createNewRule()" class="btn btn-success">➕ Add New Rule</button>
+    </div>
+    
+    <!-- Rule Editor Modal (Hidden by default) -->
+    <div id="rule-editor" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 15px; max-width: 600px; width: 90%; max-height: 90%; overflow-y: auto;">
+            <h3>✏️ Edit Rule</h3>
+            <form id="rule-form">
+                <input type="hidden" id="rule-id" name="id">
+                
+                <div class="form-group">
+                    <label>📝 Rule Name:</label>
+                    <input type="text" id="rule-name" name="name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="rule-enabled" name="enabled"> ✅ Rule Enabled
+                    </label>
+                </div>
+                
+                <div class="grid">
+                    <div>
+                        <h4>⏰ Time Conditions</h4>
+                        <div class="form-group">
+                            <label>🌅 Start Hour (0-23, -1=any):</label>
+                            <input type="number" id="rule-start-hour" name="startHour" min="-1" max="23">
+                        </div>
+                        <div class="form-group">
+                            <label>🌇 End Hour (0-23, -1=any):</label>
+                            <input type="number" id="rule-end-hour" name="endHour" min="-1" max="23">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4>🌡️ Temperature Conditions</h4>
+                        <div class="form-group">
+                            <label>🔥 Min Temperature (-999=any):</label>
+                            <input type="number" id="rule-min-temp" name="minTemp" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label>❄️ Max Temperature (-999=any):</label>
+                            <input type="number" id="rule-max-temp" name="maxTemp" step="0.1">
+                        </div>
+                    </div>
+                </div>
+                
+                <h4>🎛️ AC Actions</h4>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="rule-ac-on" name="acOn"> 🔌 Turn AC On
+                    </label>
+                </div>
+                
+                <div class="grid">
+                    <div class="form-group">
+                        <label>🌡️ Set Temperature (°C):</label>
+                        <input type="number" id="rule-set-temp" name="setTemp" min="16" max="32" step="0.5">
+                    </div>
+                    <div class="form-group">
+                        <label>💨 Fan Speed (0-3):</label>
+                        <select id="rule-fan-speed" name="fanSpeed">
+                            <option value="0">Auto</option>
+                            <option value="1">Low</option>
+                            <option value="2">Medium</option>
+                            <option value="3">High</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>🌀 AC Mode:</label>
+                    <select id="rule-mode" name="mode">
+                        <option value="0">Cool</option>
+                        <option value="1">Heat</option>
+                        <option value="2">Dry</option>
+                        <option value="3">Fan</option>
+                        <option value="4">Auto</option>
+                    </select>
+                </div>
+                
+                <div style="text-align: center; margin-top: 20px;">
+                    <button type="submit" class="btn btn-primary">💾 Save Rule</button>
+                    <button type="button" onclick="deleteCurrentRule()" class="btn btn-danger" id="delete-rule-btn">🗑️ Delete Rule</button>
+                    <button type="button" onclick="closeRuleEditor()" class="btn btn-secondary">❌ Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentRules = [];
+    let editingRuleId = null;
+    
+    // Load and display active rule
+    async function loadActiveRule() {
+        try {
+            const response = await fetch('/api/rules/active');
+            if (response.ok) {
+                const data = await response.json();
+                updateActiveRuleDisplay(data);
+            }
+        } catch (error) {
+            document.getElementById('active-rule-status').innerHTML = '<span style="color: red;">❌ Error loading active rule</span>';
+        }
+    }
+    
+    function updateActiveRuleDisplay(data) {
+        const statusDiv = document.getElementById('active-rule-status');
+        let statusHtml = `🌡️ <strong>Current Temperature:</strong> ${data.currentTemp?.toFixed(1) || 'N/A'}°C<br>`;
+        statusHtml += `🕐 <strong>Current Hour:</strong> ${data.currentHour || 'N/A'}:00<br>`;
+        
+        if (data.activeRuleId && data.activeRuleId !== -1 && data.activeRule) {
+            const rule = data.activeRule;
+            statusHtml += `<br>🎯 <strong>Active Rule:</strong> ${rule.name} (ID: ${rule.id})<br>`;
+            statusHtml += `🔌 <strong>AC Status:</strong> ${rule.acOn ? '🟢 ON' : '🔴 OFF'}<br>`;
+            if (rule.acOn) {
+                statusHtml += `🌡️ <strong>Target Temp:</strong> ${rule.setTemp}°C<br>`;
+                statusHtml += `💨 <strong>Fan Speed:</strong> ${['Auto', 'Low', 'Medium', 'High'][rule.fanSpeed] || rule.fanSpeed}<br>`;
+                statusHtml += `🌀 <strong>Mode:</strong> ${['Cool', 'Heat', 'Dry', 'Fan', 'Auto'][rule.mode] || rule.mode}`;
+            }
+        } else {
+            statusHtml += `<br>⚠️ <strong>No active rule</strong> - AC unchanged`;
+        }
+        
+        statusDiv.innerHTML = statusHtml;
+    }
+    
+    // Load and display all rules
+    async function loadRules() {
+        try {
+            const response = await fetch('/api/rules');
+            if (response.ok) {
+                const data = await response.json();
+                currentRules = data.rules || [];
+                updateRulesDisplay();
+            }
+        } catch (error) {
+            document.getElementById('rules-list').innerHTML = '<span style="color: red;">❌ Error loading rules</span>';
+        }
+    }
+    
+    function updateRulesDisplay() {
+        const rulesDiv = document.getElementById('rules-list');
+        if (currentRules.length === 0) {
+            rulesDiv.innerHTML = '<p>📄 No rules configured. Click "Add New Rule" to get started.</p>';
+            return;
+        }
+        
+        let rulesHtml = '';
+        currentRules.forEach((rule, index) => {
+            const enabledClass = rule.enabled ? 'task-running' : 'task-stopped';
+            const enabledIcon = rule.enabled ? '✅' : '⏸️';
+            
+            let timeCondition = '';
+            if (rule.startHour !== -1 && rule.endHour !== -1) {
+                timeCondition = `⏰ ${rule.startHour}:00-${rule.endHour}:00`;
+            }
+            
+            let tempCondition = '';
+            if (rule.minTemp !== -999 || rule.maxTemp !== -999) {
+                const minStr = rule.minTemp !== -999 ? `≥${rule.minTemp}°C` : '';
+                const maxStr = rule.maxTemp !== -999 ? `≤${rule.maxTemp}°C` : '';
+                tempCondition = `🌡️ ${minStr}${minStr && maxStr ? ' & ' : ''}${maxStr}`;
+            }
+            
+            const acAction = rule.acOn ? `🔌 ON → ${rule.setTemp}°C, Fan ${rule.fanSpeed}` : '🔌 OFF';
+            
+            rulesHtml += `
+                <div class="task-item ${enabledClass}">
+                    <div>
+                        <strong>${enabledIcon} ${rule.name} (ID: ${rule.id})</strong><br>
+                        <small>
+                            ${timeCondition}${timeCondition && tempCondition ? ' • ' : ''}${tempCondition}<br>
+                            ${acAction}
+                        </small>
+                    </div>
+                    <div>
+                        <button onclick="editRule(${rule.id})" class="btn btn-primary">✏️ Edit</button>
+                        <button onclick="toggleRule(${rule.id}, ${!rule.enabled})" class="btn ${rule.enabled ? 'btn-warning' : 'btn-success'}">
+                            ${rule.enabled ? '⏸️ Disable' : '▶️ Enable'}
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        rulesDiv.innerHTML = rulesHtml;
+    }
+    
+    // Create new rule
+    async function createNewRule() {
+        try {
+            const response = await fetch('/api/rules', { method: 'POST' });
+            if (response.ok) {
+                const data = await response.json();
+                await loadRules();
+                editRule(data.ruleId);
+            } else {
+                alert('Error creating rule');
+            }
+        } catch (error) {
+            alert('Error creating rule');
+        }
+    }
+    
+    // Edit rule
+    function editRule(ruleId) {
+        editingRuleId = ruleId;
+        const rule = currentRules.find(r => r.id === ruleId);
+        if (!rule) return;
+        
+        // Populate form
+        document.getElementById('rule-id').value = rule.id;
+        document.getElementById('rule-name').value = rule.name;
+        document.getElementById('rule-enabled').checked = rule.enabled;
+        document.getElementById('rule-start-hour').value = rule.startHour;
+        document.getElementById('rule-end-hour').value = rule.endHour;
+        document.getElementById('rule-min-temp').value = rule.minTemp === -999 ? '' : rule.minTemp;
+        document.getElementById('rule-max-temp').value = rule.maxTemp === -999 ? '' : rule.maxTemp;
+        document.getElementById('rule-ac-on').checked = rule.acOn;
+        document.getElementById('rule-set-temp').value = rule.setTemp;
+        document.getElementById('rule-fan-speed').value = rule.fanSpeed;
+        document.getElementById('rule-mode').value = rule.mode;
+        
+        // Show modal
+        document.getElementById('rule-editor').style.display = 'block';
+        document.getElementById('delete-rule-btn').style.display = 'inline-block';
+    }
+    
+    // Close rule editor
+    function closeRuleEditor() {
+        document.getElementById('rule-editor').style.display = 'none';
+        editingRuleId = null;
+    }
+    
+    // Save rule
+    document.getElementById('rule-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(e.target);
+        const params = new URLSearchParams();
+        
+        // Convert form data to URL parameters
+        for (let [key, value] of formData.entries()) {
+            if (key === 'enabled' || key === 'acOn') {
+                params.append(key, value ? 'true' : 'false');
+            } else if (key === 'minTemp' || key === 'maxTemp') {
+                params.append(key, value === '' ? '-999' : value);
+            } else if (key === 'startHour' || key === 'endHour') {
+                params.append(key, value === '' ? '-1' : value);
+            } else {
+                params.append(key, value);
+            }
+        }
+        
+        try {
+            const response = await fetch('/api/rules', {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: params
+            });
+            
+            if (response.ok) {
+                closeRuleEditor();
+                await loadRules();
+                await loadActiveRule();
+            } else {
+                alert('Error saving rule');
+            }
+        } catch (error) {
+            alert('Error saving rule');
+        }
+    });
+    
+    // Delete current rule
+    async function deleteCurrentRule() {
+        if (!editingRuleId || !confirm('Are you sure you want to delete this rule?')) return;
+        
+        try {
+            const response = await fetch(`/api/rules?id=${editingRuleId}`, { method: 'DELETE' });
+            if (response.ok) {
+                closeRuleEditor();
+                await loadRules();
+                await loadActiveRule();
+            } else {
+                alert('Error deleting rule');
+            }
+        } catch (error) {
+            alert('Error deleting rule');
+        }
+    }
+    
+    // Toggle rule enabled/disabled
+    async function toggleRule(ruleId, enabled) {
+        try {
+            const params = new URLSearchParams();
+            params.append('id', ruleId);
+            params.append('enabled', enabled ? 'true' : 'false');
+            
+            const response = await fetch('/api/rules', {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: params
+            });
+            
+            if (response.ok) {
+                await loadRules();
+                await loadActiveRule();
+            } else {
+                alert('Error updating rule');
+            }
+        } catch (error) {
+            alert('Error updating rule');
+        }
+    }
+    
+    // Load initial rule data
+    window.addEventListener('load', function() {
+        loadRules();
+        loadActiveRule();
+        setInterval(loadActiveRule, 30000); // Refresh active rule every 30 seconds
+    });
+</script>
+
 </body>
 </html>

@@ -21,6 +21,13 @@ void handleStopTask(AsyncWebServerRequest *request);
 void handleSystemInfo(AsyncWebServerRequest *request);
 void handleSettings(AsyncWebServerRequest *request);
 
+// Rule management functions
+void handleGetRules(AsyncWebServerRequest *request);
+void handleCreateRule(AsyncWebServerRequest *request);
+void handleUpdateRule(AsyncWebServerRequest *request);
+void handleDeleteRule(AsyncWebServerRequest *request);
+void handleGetActiveRule(AsyncWebServerRequest *request);
+
 // Global web server object
 extern AsyncWebServer server;
 

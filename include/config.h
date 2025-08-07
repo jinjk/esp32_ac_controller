@@ -32,9 +32,38 @@ struct ACSetting {
   int wind;
 };
 
+// Rule-based AC Control Structure
+struct ACRule {
+  int id;                    // Unique rule ID
+  String name;               // Rule name/description
+  bool enabled;              // Rule active/inactive
+  
+  // Time conditions (optional - use -1 to ignore)
+  int startHour;             // Start hour (0-23, -1 = any)
+  int endHour;               // End hour (0-23, -1 = any)
+  
+  // Temperature conditions (optional - use -999 to ignore)
+  float minTemp;             // Minimum temperature (-999 = any)
+  float maxTemp;             // Maximum temperature (-999 = any)
+  
+  // AC Actions
+  bool acOn;                 // Turn AC on/off
+  float setTemp;             // Target temperature
+  int fanSpeed;              // Fan speed (0-3)
+  int mode;                  // AC mode (0=cool, 1=heat, 2=dry, 3=fan, 4=auto)
+};
+
+#define MAX_RULES 10
+
 // Global Variables
 extern float currentTemp;
 extern ACSetting daySetting;
 extern ACSetting nightSetting;
+extern ACRule rules[MAX_RULES];
+extern int ruleCount;
+extern int activeRuleId;
+
+// Function declarations
+void initDefaultRules();
 
 #endif

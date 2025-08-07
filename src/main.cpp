@@ -32,6 +32,10 @@ void setup() {
   initSensors();
   initIR();
   
+  // Initialize rule system
+  initDefaultRules();
+  Serial.println("✅ Rule system initialized with default rules");
+  
   // Setup web server
   setupWebServer();
   

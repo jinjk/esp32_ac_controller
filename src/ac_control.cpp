@@ -30,28 +30,60 @@ void controlTask(void* param) {
     
     Serial.printf("Current Temperature: %.2f°C\n", currentTemp);
 
-    // Simple AC Control Logic - Always send appropriate commands
-    if (currentTemp < 26.0) {
-      // Temperature is low - turn off AC
-      Serial.println("Temperature low (<26°C). Sending AC OFF command.");
-      greeAC.powerOff();
-    } else {
-      // Temperature is high (>=26°C) - turn on AC with time-based settings
-      bool isDayTime = (hour >= daySetting.startHour && hour < daySetting.endHour);
+    // Rule-based AC Control Logic
+    activeRuleId = -1; // Reset active rule
+    
+    // Find first matching rule
+    for (int i = 0; i < ruleCount; i++) {
+      if (!rules[i].enabled) continue;
       
-      if (isDayTime) {
-        // Day time: 27°C, Wind 3
-        Serial.printf("Day time: Setting AC to 27°C, Wind 3 (Current temp: %.1f°C)\n", currentTemp);
-        greeAC.powerOn();
-        greeAC.setTemperature(27);
-        greeAC.setFanSpeed(3);
-      } else {
-        // Night time: 28°C, Wind 1  
-        Serial.printf("Night time: Setting AC to 28°C, Wind 1 (Current temp: %.1f°C)\n", currentTemp);
-        greeAC.powerOn();
-        greeAC.setTemperature(28);
-        greeAC.setFanSpeed(1);
+      bool timeMatch = true;
+      bool tempMatch = true;
+      
+      // Check time conditions
+      if (rules[i].startHour != -1 && rules[i].endHour != -1) {
+        if (rules[i].endHour > rules[i].startHour) {
+          // Normal time range (e.g., 8-19)
+          timeMatch = (hour >= rules[i].startHour && hour < rules[i].endHour);
+        } else {
+          // Overnight time range (e.g., 19-8)
+          timeMatch = (hour >= rules[i].startHour || hour < rules[i].endHour);
+        }
       }
+      
+      // Check temperature conditions
+      if (rules[i].minTemp != -999 && currentTemp < rules[i].minTemp) {
+        tempMatch = false;
+      }
+      if (rules[i].maxTemp != -999 && currentTemp > rules[i].maxTemp) {
+        tempMatch = false;
+      }
+      
+      // If both conditions match, apply this rule
+      if (timeMatch && tempMatch) {
+        activeRuleId = rules[i].id;
+        
+        Serial.printf("Applying Rule %d: %s (Temp: %.1f°C, Time: %02d:00)\n", 
+                     rules[i].id, rules[i].name.c_str(), currentTemp, hour);
+        
+        if (rules[i].acOn) {
+          greeAC.powerOn();
+          greeAC.setTemperature((uint8_t)rules[i].setTemp);
+          greeAC.setFanSpeed(rules[i].fanSpeed);
+          greeAC.setMode(rules[i].mode);
+          Serial.printf("AC ON: %.1f°C, Fan %d, Mode %d\n", 
+                       rules[i].setTemp, rules[i].fanSpeed, rules[i].mode);
+        } else {
+          greeAC.powerOff();
+          Serial.println("AC OFF");
+        }
+        
+        break; // Stop at first match
+      }
+    }
+    
+    if (activeRuleId == -1) {
+      Serial.println("No matching rules found - AC unchanged");
     }
 
     // Log status

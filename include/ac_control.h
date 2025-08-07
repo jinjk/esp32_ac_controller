@@ -7,6 +7,5 @@
 void initTime();
 void controlTask(void* param);
 void logToCloud(float temp);
-ACSetting getCurrentSettings();
 
 #endif

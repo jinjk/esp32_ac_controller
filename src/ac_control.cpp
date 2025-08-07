@@ -97,19 +97,6 @@ void controlTask(void* param) {
   }
 }
 
-ACSetting getCurrentSettings() {
-  time_t now = time(nullptr);
-  struct tm* timeinfo = localtime(&now);
-  int hour = timeinfo->tm_hour;
-  
-  // Return day settings if current hour is between start and end hour
-  if (hour >= daySetting.startHour && hour < daySetting.endHour) {
-    return daySetting;
-  } else {
-    return nightSetting;
-  }
-}
-
 void logToCloud(float temp) {
   // Enhanced logging with timestamp
   time_t now = time(nullptr);

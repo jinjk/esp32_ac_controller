@@ -48,8 +48,7 @@ public:
     uint16_t getTimer();
     void clearTimer();
     
-    // Apply Settings
-    void applySettings(const ACSetting& setting);
+    // Command Control
     void sendCommand();
     
     // Status
@@ -73,10 +72,6 @@ extern GreeACController greeAC;
 
 // Simplified API functions (backward compatibility)
 void initIR();
-void applyACSetting(const ACSetting& setting);
 bool isIRReadyForControl();
-
-// Convert legacy AC settings to Gree format
-GreeACSetting convertToGreeSettings(const ACSetting& setting);
 
 #endif

@@ -24,14 +24,6 @@ extern const char* ntpServer;
 extern const long gmtOffset_sec;
 extern const int daylightOffset_sec;
 
-// AC Settings Structure
-struct ACSetting {
-  int startHour;
-  int endHour;
-  float temp;
-  int wind;
-};
-
 // Rule-based AC Control Structure
 struct ACRule {
   int id;                    // Unique rule ID
@@ -59,8 +51,6 @@ struct ACRule {
 
 // Global Variables
 extern float currentTemp;
-extern ACSetting daySetting;
-extern ACSetting nightSetting;
 extern ACRule rules[MAX_RULES];
 extern int ruleCount;
 extern int activeRuleId;

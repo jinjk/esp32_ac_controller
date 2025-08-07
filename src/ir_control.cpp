@@ -209,18 +209,6 @@ void GreeACController::clearTimer() {
     Serial.println("AC: Timer cleared");
 }
 
-// Apply AC settings
-void GreeACController::applySettings(const ACSetting& setting) {
-    // Convert legacy setting format to Gree AC settings
-    // ACSetting has: startHour, endHour, temp, wind
-    
-    setTemperature((uint8_t)setting.temp);
-    setFanSpeed(setting.wind);  // wind maps to fan speed
-    setMode(kGreeCool);  // Default to cool mode
-    
-    sendCommand();
-}
-
 // Send command to AC
 void GreeACController::sendCommand() {
     ac.send();
@@ -255,23 +243,6 @@ void initIR() {
     greeAC.init();
 }
 
-void applyACSetting(const ACSetting& setting) {
-    greeAC.applySettings(setting);
-}
-
 bool isIRReadyForControl() {
     return greeAC.isReady();
-}
-
-// Convert legacy ACSetting to Gree settings
-GreeACSetting convertToGreeSettings(const ACSetting& setting) {
-    GreeACSetting greeSetting;
-    greeSetting.power = true;  // Default to on when applying settings
-    greeSetting.temperature = (uint8_t)setting.temp;
-    greeSetting.fanSpeed = setting.wind;
-    greeSetting.mode = kGreeCool;  // Default to cool mode
-    greeSetting.swingV = false;  // Default values
-    greeSetting.swingH = false;
-    greeSetting.timer = 0;  // No timer by default
-    return greeSetting;
 }

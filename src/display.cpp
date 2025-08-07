@@ -28,7 +28,7 @@ void updateDisplay() {
   display.clearDisplay();
   display.setCursor(0, 0);
   display.printf("Temp: %.1fC\n", currentTemp);
-  display.printf("Mode: %s\n", (timeinfo->tm_hour >= daySetting.startHour && timeinfo->tm_hour < daySetting.endHour) ? "Day" : "Night");
+  display.printf("Rule: %s\n", activeRuleId != -1 ? "Active" : "None");
   display.printf("Time: %02d:%02d\n", timeinfo->tm_hour, timeinfo->tm_min);
   display.display();
 }

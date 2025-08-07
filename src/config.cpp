@@ -12,8 +12,6 @@ const int daylightOffset_sec = 0;
 
 // Global Variables
 float currentTemp = 0.0;
-ACSetting daySetting = {8, 19, 27.0, 3};
-ACSetting nightSetting = {19, 8, 28.0, 2};
 
 // Rule-based control system
 ACRule rules[MAX_RULES];

@@ -4,11 +4,35 @@ let editingRuleId = null;
 // Load and display active rule
 async function loadActiveRule() {
     try {
-        const response = await fetch('/api/rules/active');
-        if (response.ok) {
-            const data = await response.json();
-            updateActiveRuleDisplay(data);
+        // Fetch active rule data
+        const ruleResponse = await fetch('/api/rules/active');
+        let ruleData = {};
+        if (ruleResponse.ok) {
+            ruleData = await ruleResponse.json();
         }
+        
+        // Fetch current temperature
+        const tempResponse = await fetch('/api/temp');
+        let tempData = {};
+        if (tempResponse.ok) {
+            tempData = await tempResponse.json();
+        }
+        
+        // Fetch system info for current time
+        const systemResponse = await fetch('/api/system');
+        let systemData = {};
+        if (systemResponse.ok) {
+            systemData = await systemResponse.json();
+        }
+        
+        // Combine all data
+        const combinedData = {
+            ...ruleData,
+            currentTemp: tempData.temp,
+            currentHour: systemData.currentHour
+        };
+        
+        updateActiveRuleDisplay(combinedData);
     } catch (error) {
         document.getElementById('active-rule-status').innerHTML = '<span style="color: red;">[错误] 加载激活规则时出错</span>';
     }
@@ -17,8 +41,18 @@ async function loadActiveRule() {
 function updateActiveRuleDisplay(data) {
     const statusDiv = document.getElementById('active-rule-status');
     let statusHtml = `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">`;
-    statusHtml += `<div><strong>[温度] 当前温度：</strong> ${data.currentTemp?.toFixed(1) || 'N/A'}°C</div>`;
-    statusHtml += `<div><strong>[时间] 当前时间：</strong> ${data.currentHour || 'N/A'}:00</div>`;
+    
+    // Display temperature with fallback
+    const tempDisplay = data.currentTemp !== undefined ? 
+        `${data.currentTemp.toFixed(1)}°C` : 
+        '<span style="color: #999;">获取中...</span>';
+    statusHtml += `<div><strong>[温度] 当前温度：</strong> ${tempDisplay}</div>`;
+    
+    // Display time with fallback
+    const timeDisplay = data.currentHour !== undefined ? 
+        `${data.currentHour}:00` : 
+        '<span style="color: #999;">获取中...</span>';
+    statusHtml += `<div><strong>[时间] 当前时间：</strong> ${timeDisplay}</div>`;
     statusHtml += `</div>`;
     
     if (data.activeRuleId && data.activeRuleId !== -1 && data.activeRule) {

@@ -21,6 +21,11 @@ void handleUpdateRule(AsyncWebServerRequest *request);
 void handleDeleteRule(AsyncWebServerRequest *request);
 void handleGetActiveRule(AsyncWebServerRequest *request);
 
+// Rule persistence functions
+void handleSaveRules(AsyncWebServerRequest *request);
+void handleLoadRules(AsyncWebServerRequest *request);
+void handleResetRules(AsyncWebServerRequest *request);
+
 // Global web server object
 extern AsyncWebServer server;
 

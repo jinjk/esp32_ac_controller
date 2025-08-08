@@ -62,6 +62,11 @@ void setupWebServer() {
   server.on("/api/rules", HTTP_DELETE, handleDeleteRule);
   server.on("/api/rules/active", HTTP_GET, handleGetActiveRule);
   
+  // Rule persistence management
+  server.on("/api/rules/save", HTTP_POST, handleSaveRules);
+  server.on("/api/rules/load", HTTP_POST, handleLoadRules);
+  server.on("/api/rules/reset", HTTP_POST, handleResetRules);
+  
   server.on("/api/health", HTTP_GET, [](AsyncWebServerRequest *request) {
     JsonDocument doc;
     doc["status"] = "ok";
@@ -287,6 +292,9 @@ void handleCreateRule(AsyncWebServerRequest *request) {
   
   ruleCount++;
   
+  // Save rules to persistent storage
+  saveRulesToSPIFFS();
+  
   doc["success"] = true;
   doc["message"] = "Rule created successfully";
   doc["ruleId"] = newId;
@@ -366,6 +374,9 @@ void handleUpdateRule(AsyncWebServerRequest *request) {
     rules[ruleIndex].hSwing = request->getParam("hSwing", true)->value().toInt();
   }
   
+  // Save rules to persistent storage
+  saveRulesToSPIFFS();
+  
   doc["success"] = true;
   doc["message"] = "Rule updated successfully";
   
@@ -412,6 +423,9 @@ void handleDeleteRule(AsyncWebServerRequest *request) {
   }
   ruleCount--;
   
+  // Save rules to persistent storage
+  saveRulesToSPIFFS();
+  
   doc["success"] = true;
   doc["message"] = "Rule deleted successfully";
   
@@ -447,6 +461,66 @@ void handleGetActiveRule(AsyncWebServerRequest *request) {
       }
     }
   }
+  
+  String response;
+  serializeJson(doc, response);
+  request->send(200, "application/json", response);
+}
+
+// Rule persistence management functions
+void handleSaveRules(AsyncWebServerRequest *request) {
+  JsonDocument doc;
+  
+  saveRulesToSPIFFS();
+  
+  doc["success"] = true;
+  doc["message"] = "Rules saved to persistent storage";
+  doc["ruleCount"] = ruleCount;
+  doc["timestamp"] = millis();
+  
+  String response;
+  serializeJson(doc, response);
+  request->send(200, "application/json", response);
+}
+
+void handleLoadRules(AsyncWebServerRequest *request) {
+  JsonDocument doc;
+  
+  loadRulesFromSPIFFS();
+  
+  doc["success"] = true;
+  doc["message"] = "Rules loaded from persistent storage";
+  doc["ruleCount"] = ruleCount;
+  doc["timestamp"] = millis();
+  
+  String response;
+  serializeJson(doc, response);
+  request->send(200, "application/json", response);
+}
+
+void handleResetRules(AsyncWebServerRequest *request) {
+  JsonDocument doc;
+  
+  // Confirm reset with password or specific parameter
+  if (!request->hasParam("confirm", true) || 
+      request->getParam("confirm", true)->value() != "RESET_TO_DEFAULTS") {
+    doc["success"] = false;
+    doc["message"] = "Reset confirmation required. Send 'confirm=RESET_TO_DEFAULTS'";
+    doc["error"] = "MISSING_CONFIRMATION";
+    String response;
+    serializeJson(doc, response);
+    request->send(400, "application/json", response);
+    return;
+  }
+  
+  // Reset to default rules
+  initDefaultRules();
+  saveRulesToSPIFFS();
+  
+  doc["success"] = true;
+  doc["message"] = "Rules reset to defaults and saved";
+  doc["ruleCount"] = ruleCount;
+  doc["timestamp"] = millis();
   
   String response;
   serializeJson(doc, response);

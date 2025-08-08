@@ -57,5 +57,7 @@ extern int activeRuleId;
 
 // Function declarations
 void initDefaultRules();
+void saveRulesToSPIFFS();
+void loadRulesFromSPIFFS();
 
 #endif

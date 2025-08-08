@@ -32,9 +32,9 @@ void setup() {
   initSensors();
   initIR();
   
-  // Initialize rule system
-  initDefaultRules();
-  Serial.println("✅ Rule system initialized with default rules");
+  // Initialize rule system with persistence
+  loadRulesFromSPIFFS();
+  Serial.println("✅ Rule system initialized with persistent storage");
   
   // Setup web server
   setupWebServer();

@@ -9,7 +9,6 @@ class Adafruit_SHT31;
 // Sensor management functions
 void initSensors();
 float readTemperature();
-int readWindSensor();
 
 // Global sensor objects
 extern Adafruit_SHT31 sht31;

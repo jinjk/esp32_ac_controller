@@ -10,9 +10,6 @@ void initSensors() {
   } else {
     Serial.println("SHT31 sensor initialized");
   }
-  
-  pinMode(WIND_SENSOR_PIN, INPUT);
-  Serial.println("Wind sensor pin initialized");
 }
 
 float readTemperature() {
@@ -25,16 +22,4 @@ float readTemperature() {
   }
   
   return temp;
-}
-
-int readWindSensor() {
-  // Read analog value from wind sensor
-  // This is a placeholder - implement based on your specific wind sensor
-  int windValue = analogRead(WIND_SENSOR_PIN);
-  
-  // Convert to wind speed or level based on your sensor specifications
-  // This is a simple mapping - adjust based on your sensor
-  int windLevel = map(windValue, 0, 4095, 1, 5);
-  
-  return constrain(windLevel, 1, 5);
 }

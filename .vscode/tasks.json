@@ -1,0 +1,24 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "PlatformIO Build",
+			"type": "shell",
+			"command": "pio",
+			"args": [
+				"run"
+			],
+			"group": "build",
+			"problemMatcher": [
+				"$gcc"
+			],
+			"isBackground": false,
+			"options": {
+				"env": {
+					"PYTHONPATH": "/home/jjin/.platformio/packages/tool-esptoolpy:/home/jjin/.local/lib/python3.10/site-packages",
+					"PATH": "/home/jjin/.local/bin:/usr/bin:${env:PATH}"
+				}
+			}
+		}
+	]
+}

@@ -3,5 +3,14 @@
         "regex": "cpp",
         "typeinfo": "cpp",
         "cmath": "cpp"
+    },
+    "platformio-ide.useBuiltinPython": false,
+    "platformio-ide.customPATH": "/home/jjin/.local/bin:/usr/bin",
+    "python.defaultInterpreterPath": "/usr/bin/python3",
+    "platformio-ide.activateOnlyOnPlatformIOProject": true,
+    "terminal.integrated.env.linux": {
+        "PLATFORMIO_CORE_DIR": "/home/jjin/.platformio",
+        "PATH": "/home/jjin/.local/bin:/usr/bin:${env:PATH}",
+        "PYTHONPATH": "/home/jjin/.local/lib/python3.10/site-packages"
     }
 }

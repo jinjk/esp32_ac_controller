@@ -26,9 +26,9 @@ This document provides the complete circuit diagram and GPIO connection details 
 |------|----------|-----------|-------|
 | GPIO13 | IR_SEND_PIN | IR LED Transmitter | PWM output for Gree AC control |
 | GPIO21 | OLED_SDA | OLED Display | I2C Data line |
-| GPIO22 | OLED_SCL | OLED Display | I2C Clock line |
+| GPIO20 | OLED_SCL | OLED Display | I2C Clock line |
 | GPIO21 | SDA | SHT31 Sensor | Shared I2C Data line |
-| GPIO22 | SCL | SHT31 Sensor | Shared I2C Clock line |
+| GPIO20 | SCL | SHT31 Sensor | Shared I2C Clock line |
 | GPIO12 | Available | - | Available for future use |
 | GPIO14 | Available | - | Available for future use |
 
@@ -42,24 +42,24 @@ This document provides the complete circuit diagram and GPIO connection details 
                         │  │ USB │         │RESET│        │
                         │  └─────┘         └─────┘        │
                         │                                 │
-Power Supply            │  3V3 ●                    ● GND │ ──┐
-    ┌──────────────────── EN  ●                    ● D43 │   │
+Power Supply            │   3V3 ●                    ● GND │ ──┐
+    ┌────────────────────   EN  ●                    ● D43 │   │
     │                   │ GPIO36●                    ● D44 │   │
-    │     ┌──────────────── GPIO35●                    ● D1  │   │
+    │     ┌────────────── GPIO35●                    ● D1  │   │
     │     │             │ GPIO37●                    ● D2  │   │
     │     │             │ GPIO38●                    ● D42 │   │
     │     │             │ GPIO39●                    ● D41 │   │
     │     │             │ GPIO40●                    ● D40 │   │
     │     │             │ GPIO41●                    ● D39 │   │
     │     │             │ GPIO42●                    ● D38 │   │
-    │     │   ┌──────────── GPIO2 ●                    ● D37 │   │
+    │     │   ┌────────── GPIO2 ●                    ● D37 │   │
     │     │   │         │ GPIO1 ●                    ● D36 │   │
     │     │   │         │ GND   ●                    ● D35 │   │
     │     │   │         │ GPIO46●                    ● D0  │   │
     │     │   │         │ GPIO45●                    ● D45 │   │
     │     │   │         │ GPIO48●                    ● D48 │   │
     │     │   │         │ GPIO47●                    ● D47 │   │
-    │     │   │         │ GPIO21●─────────────────────────────┼───┐ SDA (I2C)
+    │     │   │         │ GPIO21●──────────────────────────┼───┐ SDA (I2C)
     │     │   │         │ GPIO20●                    ● D21 │   │ │
     │     │   │         │ GPIO19●                    ● D20 │   │ │
     │     │   │         │ GPIO18●                    ● D19 │   │ │
@@ -67,8 +67,8 @@ Power Supply            │  3V3 ●                    ● GND │ ──┐
     │     │   │         │ GPIO16●                    ● D17 │   │ │
     │     │   │         │ GPIO15●                    ● D16 │   │ │
     │     │   │         │ GPIO14●  (Available)       ● D15 │   │ │
-    │     │   │   ┌──────── GPIO13●  (IR_SEND_PIN)     ● D14 │   │ │
-    │     │   │   │     │ GPIO12●  (Available)        ● D13 │   │ │
+    │     │   │   ┌────── GPIO13●  (IR_SEND_PIN)     ● D14 │   │ │
+    │     │   │   │     │ GPIO12●  (Available)       ● D13 │   │ │
     │     │   │   │     │ GPIO11●                    ● D12 │   │ │
     │     │   │   │     │ GPIO10●                    ● D11 │   │ │
     │     │   │   │     │ GPIO9 ●                    ● D10 │   │ │
@@ -78,7 +78,7 @@ Power Supply            │  3V3 ●                    ● GND │ ──┐
     │     │   │   │     │ GPIO5 ●                    ● D6  │   │ │
     │     │   │   │     │ GPIO4 ●                    ● D5  │   │ │
     │     │   │   │     │ GPIO3 ●                    ● D4  │   │ │
-    │     │   │   │ ┌────── GPIO22● (OLED_SCL)        ● D3  │   │ │
+    │     │   │   │ ┌──── GPIO20● (OLED_SCL)         ● D3  │   │ │
     │     │   │   │ │   │ 5V    ●                    ● D22 │ ──┘ │ SCL (I2C)
     │     │   │   │ │   │ GND   ●                    ● GND │ ────┘
     │     │   │   │ │   └─────────────────────────────────┘
@@ -141,7 +141,7 @@ Power Supply            │  3V3 ●                    ● GND │ ──┐
 | ESP32-S3 Pin | Signal | SHT31 Pin | OLED Pin | Pull-up Resistor |
 |--------------|--------|-----------|-----------|------------------|
 | GPIO21 | SDA | SDA | SDA | 4.7kΩ to 3.3V |
-| GPIO22 | SCL | SCL | SCL | 4.7kΩ to 3.3V |
+| GPIO20 | SCL | SCL | SCL | 4.7kΩ to 3.3V |
 | 3V3 | VCC | VCC | VCC | - |
 | GND | GND | GND | GND | - |
 
@@ -172,12 +172,12 @@ Power Supply            │  3V3 ●                    ● GND │ ──┐
 | 3 pins used | GPIO12, GPIO14 + others | GPIO0, GPIO46 (strapping) |
 | GPIO13 (IR) | Many GPIO available | GPIO45, GPIO47 (strapping) |
 | GPIO21 (SDA) | for expansion | USB pins (GPIO19-20) |
-| GPIO22 (SCL) | | |
+| GPIO20 (SCL) | | |
 
 ## Assembly Instructions
 
 1. **Power Setup**: Connect ESP32-S3 to 5V power supply
-2. **I2C Bus**: Wire GPIO21 (SDA) and GPIO22 (SCL) with 4.7kΩ pull-up resistors
+2. **I2C Bus**: Wire GPIO21 (SDA) and GPIO20 (SCL) with 4.7kΩ pull-up resistors
 3. **SHT31 Sensor**: Connect to I2C bus (address 0x44)
 4. **OLED Display**: Connect to I2C bus (address 0x3C)
 5. **IR LED**: Connect to GPIO13 with 220Ω current limiting resistor
@@ -189,7 +189,7 @@ The pin definitions are configured in `include/config.h`:
 ```cpp
 #define IR_SEND_PIN 13      // GPIO13 - IR Transmitter
 #define OLED_SDA 21         // GPIO21 - SDA for OLED
-#define OLED_SCL 22         // GPIO22 - SCL for OLED
+#define OLED_SCL 20         // GPIO20 - SCL for OLED
 ```
 
 ## Testing Checklist

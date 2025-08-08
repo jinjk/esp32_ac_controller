@@ -21,7 +21,6 @@ Design and implement a **smart AC controller** using an **ESP32-S3 (32 N16R8)** 
 | **ESP32-S3 Dev Board** | Main controller with Wi-Fi, PSRAM, USB-C | Core MCU  |
 | **SHT3x Sensor**       | Temperature & Humidity (I²C)             | I²C       |
 | **IR Transmitter**     | Sends IR signals to Gree AC              | GPIO      |
-| **Wind Speed Sensor**  | Fan-based rotation encoder               | GPIO      |
 | **0.91" OLED Display** | SSD1306 I²C screen for real-time info    | I²C       |
 
 **Note**: ❌ **IR Receiver removed** - Not required for Gree AC (uses built-in library)

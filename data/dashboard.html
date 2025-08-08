@@ -2,8 +2,9 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>ESP32-S3 空调控制器 - 仪表板</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">    <style>
+    <title>ESP32-S3 AC Controller - Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
         body { font-family: Arial, sans-serif; margin: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
         .navbar { background: rgba(255,255,255,0.1); padding: 15px 0; margin-bottom: 20px; backdrop-filter: blur(10px); }
         .nav-container { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; }
@@ -31,21 +32,7 @@
         .status-off { background-color: #dc3545; }
         .status-auto { background-color: #ffc107; }
         @media (max-width: 768px) { 
-            .nav-links { 
-                display: flex; 
-                flex-direction: column; 
-                gap: 5px; 
-                align-items: center; 
-                margin-top: 10px; 
-            }
-            .nav-container { 
-                flex-direction: column; 
-                text-align: center; 
-            }
-            .nav-links a { 
-                padding: 8px 15px; 
-                font-size: 14px; 
-            }
+            .nav-links { display: none; }
             .dashboard-grid { grid-template-columns: 1fr; }
         }
     </style>
@@ -54,12 +41,12 @@
     <!-- Navigation -->
     <nav class="navbar">
         <div class="nav-container">
-            <a href="/" class="logo">🌡️ 空调控制器</a>
+            <a href="/" class="logo">[TEMP] AC Controller</a>
             <div class="nav-links">
-                <a href="/" class="active">📊 仪表板</a>
-                <a href="/rules.html">⚙️ 规则管理</a>
-                <a href="/control.html">❄️ 手动控制</a>
-                <a href="/settings.html">🔧 系统设置</a>
+                <a href="/" class="active">[INFO] Dashboard</a>
+                <a href="/rules.html">[RULES] Rules</a>
+                <a href="/control.html">[AC] Manual Control</a>
+                <a href="/settings.html">[SETTINGS] Settings</a>
             </div>
         </div>
     </nav>
@@ -69,54 +56,55 @@
         <div class="dashboard-grid">
             <!-- Current Status Card -->
             <div class="card status-card">
-                <h3>📈 当前状态</h3>
+                <h3>[INFO] Current Status</h3>
                 <div class="metric">
                     <div class="metric-value" id="temp-display">--.-°C</div>
-                    <div class="metric-label">🌡️ 当前温度</div>
+                    <div class="metric-label">Current Temperature</div>
                 </div>
                 <div style="margin-top: 20px;">
-                    <p><span class="status-indicator" id="ac-indicator"></span><strong>❄️ 空调状态：</strong> <span id="ac-status-text">加载中...</span></p>
-                    <p><strong>🕐 当前时间：</strong> <span id="current-time">--:--:--</span></p>
-                    <p><strong>⚙️ 激活规则：</strong> <span id="active-rule-name">无</span></p>
+                    <p><span class="status-indicator" id="ac-indicator"></span><strong>AC Status:</strong> <span id="ac-status-text">Loading...</span></p>
+                    <p><strong>[TIME] Current Time:</strong> <span id="current-time">Loading...</span></p>
+                    <p><strong>[RULES] Active Rule:</strong> <span id="active-rule-name">None</span></p>
                 </div>
             </div>
 
             <!-- Quick Controls Card -->
             <div class="card">
-                <h3>🎮 快速控制</h3>
+                <h3>[AC] Quick Controls</h3>
                 <div class="quick-controls">
-                    <button class="btn btn-primary" onclick="sendACCommand('power_on')">🟢 开启电源</button>
-                    <button class="btn btn-secondary" onclick="sendACCommand('power_off')">🔴 关闭电源</button>
-                    <button class="btn btn-warning" onclick="sendACCommand('temp_up')">🔥 升高温度</button>
-                    <button class="btn btn-warning" onclick="sendACCommand('temp_down')">❄️ 降低温度</button>
+                    <button class="btn btn-primary" onclick="sendACCommand('power_on')">[ON] Power ON</button>
+                    <button class="btn btn-secondary" onclick="sendACCommand('power_off')">[OFF] Power OFF</button>
+                    <button class="btn btn-warning" onclick="sendACCommand('temp_up')">[HOT] Temp UP</button>
+                    <button class="btn btn-warning" onclick="sendACCommand('temp_down')">[COLD] Temp DOWN</button>
                 </div>
                 <div style="text-align: center; margin-top: 15px;">
-                    <a href="/control.html" class="btn btn-success">🎛️ 完整控制面板</a>
+                    <a href="/control.html" class="btn btn-success">[AC] Full Control Panel</a>
                 </div>
             </div>
 
             <!-- System Info Card -->
             <div class="card">
-                <h3>💻 系统信息</h3>
+                <h3>[SYSTEM] System Information</h3>
                 <div style="font-size: 0.9em; color: #666;">
-                    <p><strong>🌐 IP地址：</strong> <span id="ip-address">加载中...</span></p>
-                    <p><strong>💾 可用内存：</strong> <span id="free-memory">加载中...</span></p>
-                    <p><strong>⏰ 运行时间：</strong> <span id="uptime">加载中...</span></p>
-                    <p><strong>⚡ 活动任务：</strong> <span id="active-tasks">加载中...</span></p>
-                    <p><strong>📡 红外系统：</strong> <span style="color: #28a745;">✅ 就绪</span></p>
+                    <p><strong>IP Address:</strong> <span id="ip-address">Loading...</span></p>
+                    <p><strong>Free Memory:</strong> <span id="free-memory">Loading...</span></p>
+                    <p><strong>Uptime:</strong> <span id="uptime">Loading...</span></p>
+                    <p><strong>Active Tasks:</strong> <span id="active-tasks">Loading...</span></p>
+                    <p><strong>IR System:</strong> <span style="color: #28a745;">[OK] Ready</span></p>
                 </div>
             </div>
         </div>
 
         <!-- Active Rule Details -->
         <div class="card" id="active-rule-card" style="display: none;">
-            <h3>⚙️ 激活规则详情</h3>
-            <div id="active-rule-details">加载中...</div>
+            <h3>[RULES] Active Rule Details</h3>
+            <div id="active-rule-details">Loading...</div>
             <div style="text-align: center; margin-top: 15px;">
-                <a href="/rules.html" class="btn btn-primary">🔧 管理规则</a>
+                <a href="/rules.html" class="btn btn-primary">[RULES] Manage Rules</a>
             </div>
         </div>
     </div>
+
     <script>
         let systemData = {};
         
@@ -127,14 +115,9 @@
                 if (response.ok) {
                     systemData = await response.json();
                     updateDashboard();
-                } else {
-                    // Fallback if API is not available
-                    updateDashboardFallback();
                 }
             } catch (error) {
                 console.error('Error loading system data:', error);
-                // Use fallback data display
-                updateDashboardFallback();
             }
         }
         
@@ -163,62 +146,24 @@
                 const statusText = document.getElementById('ac-status-text');
                 if (systemData.acOn) {
                     indicator.className = 'status-indicator status-on';
-                    statusText.textContent = '✅ 运行中';
+                    statusText.textContent = '[ON] Running';
                 } else {
                     indicator.className = 'status-indicator status-off';
-                    statusText.textContent = '❌ 已停止';
+                    statusText.textContent = '[OFF] Stopped';
                 }
             }
             
             // Update system info
             if (systemData.system) {
                 const sys = systemData.system;
-                if (sys.freeHeap) {
-                    document.getElementById('free-memory').textContent = Math.round(sys.freeHeap / 1024) + ' KB';
-                }
-                if (sys.uptime) {
-                    document.getElementById('uptime').textContent = Math.floor(sys.uptime / 1000) + ' 秒';
-                }
-                if (sys.activeTasks) {
-                    document.getElementById('active-tasks').textContent = sys.activeTasks;
-                }
+                document.getElementById('free-memory').textContent = Math.round(sys.freeHeap / 1024) + ' KB';
+                document.getElementById('uptime').textContent = Math.floor(sys.uptime / 1000) + ' seconds';
+                document.getElementById('active-tasks').textContent = sys.activeTasks;
             }
             
             // Update current time
             const now = new Date();
-            document.getElementById('current-time').textContent = now.toLocaleTimeString('zh-CN');
-        }
-        
-        function updateDashboardFallback() {
-            // Show basic info when API is not available
-            const indicator = document.getElementById('ac-indicator');
-            const statusText = document.getElementById('ac-status-text');
-            indicator.className = 'status-indicator status-auto';
-            statusText.textContent = '🔄 系统连接中...';
-            
-            // Set some default values
-            document.getElementById('ip-address').textContent = '192.168.5.146';
-            document.getElementById('free-memory').textContent = '-- KB';
-            document.getElementById('uptime').textContent = '-- 秒';
-            document.getElementById('active-tasks').textContent = '5';
-            
-            // Update current time
-            const now = new Date();
-            document.getElementById('current-time').textContent = now.toLocaleTimeString('zh-CN');
-            
-            // Try to get temperature from a simple API call
-            fetch('/api/temp')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.temp !== undefined) {
-                        document.getElementById('temp-display').textContent = data.temp.toFixed(1) + '°C';
-                    }
-                })
-                .catch(error => {
-                    console.log('Temperature API not available');
-                    // Show a fallback temperature
-                    document.getElementById('temp-display').textContent = '28.1°C';
-                });
+            document.getElementById('current-time').textContent = now.toLocaleTimeString();
         }
         
         function updateActiveRuleDisplay(data) {
@@ -231,18 +176,18 @@
                 activeRuleName.textContent = rule.name + ' (ID: ' + rule.id + ')';
                 
                 let detailsHtml = `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">`;
-                detailsHtml += `<div><strong>❄️ 电源：</strong> ${rule.acOn ? '✅ 开机' : '❌ 关机'}</div>`;
+                detailsHtml += `<div><strong>[AC] Power:</strong> ${rule.acOn ? '[ON] ON' : '[OFF] OFF'}</div>`;
                 if (rule.acOn) {
-                    detailsHtml += `<div><strong>🌡️ 目标温度：</strong> ${rule.setTemp}°C</div>`;
-                    detailsHtml += `<div><strong>💨 风速：</strong> ${['🔄 自动', '🌪️ 低速', '💨 中速', '🌀 高速'][rule.fanSpeed]}</div>`;
-                    detailsHtml += `<div><strong>🎛️ 模式：</strong> ${['❄️ 制冷', '🔥 制热', '💧 除湿', '💨 送风', '🔄 自动'][rule.mode]}</div>`;
+                    detailsHtml += `<div><strong>[TEMP] Target:</strong> ${rule.setTemp}°C</div>`;
+                    detailsHtml += `<div><strong>[FAN] Fan Speed:</strong> ${['Auto', 'Low', 'Medium', 'High'][rule.fanSpeed]}</div>`;
+                    detailsHtml += `<div><strong>[MODE] Mode:</strong> ${['Cool', 'Heat', 'Dry', 'Fan', 'Auto'][rule.mode]}</div>`;
                 }
                 detailsHtml += `</div>`;
                 
                 activeRuleDetails.innerHTML = detailsHtml;
                 activeRuleCard.style.display = 'block';
             } else {
-                activeRuleName.textContent = '无';
+                activeRuleName.textContent = 'None';
                 activeRuleCard.style.display = 'none';
             }
         }
@@ -257,14 +202,14 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    showNotification('✅ ' + data.message, 'success');
+                    showNotification('[OK] ' + data.message, 'success');
                     setTimeout(loadSystemData, 1000); // Refresh data after command
                 } else {
-                    showNotification('❌ ' + data.message, 'error');
+                    showNotification('[ERROR] ' + data.message, 'error');
                 }
             })
             .catch(error => {
-                showNotification('❌ 连接失败', 'error');
+                showNotification('[ERROR] Connection failed', 'error');
             });
         }
         
@@ -294,11 +239,6 @@
         
         // Initialize dashboard
         window.onload = function() {
-            // Set initial time immediately
-            const now = new Date();
-            document.getElementById('current-time').textContent = now.toLocaleTimeString('zh-CN');
-            
-            // Load system data
             loadSystemData();
             loadActiveRule();
             
@@ -309,7 +249,7 @@
             // Update time every second
             setInterval(() => {
                 const now = new Date();
-                document.getElementById('current-time').textContent = now.toLocaleTimeString('zh-CN');
+                document.getElementById('current-time').textContent = now.toLocaleTimeString();
             }, 1000);
         };
     </script>

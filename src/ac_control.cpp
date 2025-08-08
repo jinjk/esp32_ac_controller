@@ -9,15 +9,6 @@
 static const uint32_t CONTROL_LOOP_SLEEP_MS = 10 * 1000;
 
 // Track previous AC state to avoid unnecessary commands
-struct ACState {
-  bool power;
-  uint8_t temperature;
-  uint8_t fanSpeed;
-  uint8_t mode;
-  int vSwing;
-  int hSwing;
-};
-
 static ACState previousACState = {false, 24, 0, 0, 0, 0};
 
 // Helper function to check if AC state has changed
@@ -38,6 +29,11 @@ void updatePreviousACState(bool power, uint8_t temp, uint8_t fan, uint8_t mode, 
   previousACState.mode = mode;
   previousACState.vSwing = vSwing;
   previousACState.hSwing = hSwing;
+}
+
+// Function to get current AC state
+ACState getCurrentACState() {
+  return previousACState;
 }
 
 void initTime() {

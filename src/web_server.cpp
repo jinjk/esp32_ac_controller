@@ -1,6 +1,7 @@
 #include "web_server.h"
 #include "task_manager.h"
 #include "ir_control.h"
+#include "ac_control.h"
 #include <WiFi.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
@@ -45,10 +46,6 @@ void setupWebServer() {
     return;
   }
   
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(200, "text/html", getWebContent());
-  });
-
   // REST API endpoints
   server.on("/api/ac/control", HTTP_POST, handleACControl);
   
@@ -74,6 +71,24 @@ void setupWebServer() {
     String response;
     serializeJson(doc, response);
     request->send(200, "application/json", response);
+  });
+
+  // Simple temperature API
+  server.on("/api/temp", HTTP_GET, [](AsyncWebServerRequest *request) {
+    JsonDocument doc;
+    doc["temp"] = currentTemp;
+    doc["timestamp"] = millis();
+    String response;
+    serializeJson(doc, response);
+    request->send(200, "application/json", response);
+  });
+
+  // Serve static files from SPIFFS
+  server.serveStatic("/", SPIFFS, "/").setDefaultFile("index.html");
+  
+  // Handle 404 - Not Found
+  server.onNotFound([](AsyncWebServerRequest *request) {
+    request->send(404, "text/plain", "Page Not Found");
   });
 
   server.begin();
@@ -132,10 +147,12 @@ void handleACControl(AsyncWebServerRequest *request) {
   
   if (action == "power_on") {
     greeAC.powerOn();
+    greeAC.sendCommand();
     success = true;
     doc["message"] = "AC powered ON";
   } else if (action == "power_off") {
     greeAC.powerOff();
+    greeAC.sendCommand();
     success = true;
     doc["message"] = "AC powered OFF";
   } else if (action == "temp_up") {
@@ -196,6 +213,13 @@ void handleSystemInfo(AsyncWebServerRequest *request) {
   
   // Current system status
   doc["currentTemp"] = currentTemp;
+  
+  // AC Status
+  ACState currentACState = getCurrentACState();
+  doc["acOn"] = currentACState.power;
+  doc["acTemp"] = currentACState.temperature;
+  doc["acMode"] = currentACState.mode;
+  doc["acFanSpeed"] = currentACState.fanSpeed;
   
   // Time info
   time_t now = time(nullptr);

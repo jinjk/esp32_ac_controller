@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>ESP32-S3 空调控制器 - 规则管理</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+        .navbar { background: rgba(255,255,255,0.1); padding: 15px 0; margin-bottom: 20px; backdrop-filter: blur(10px); }
+        .nav-container { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; }
+        .logo { color: white; font-size: 24px; font-weight: bold; text-decoration: none; }
+        .nav-links { display: flex; gap: 20px; }
+        .nav-links a { color: white; text-decoration: none; padding: 10px 20px; border-radius: 25px; transition: all 0.3s; }
+        .nav-links a:hover, .nav-links a.active { background: rgba(255,255,255,0.2); }
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); margin-bottom: 20px; }
+        .status-card { background: linear-gradient(135deg, #e3ffe7 0%, #d9e7ff 100%); border-left: 5px solid #007bff; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
+        input, select { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        input:focus, select:focus { border-color: #007bff; outline: none; }
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; transition: all 0.3s; margin: 5px; }
+        .btn-primary { background: linear-gradient(135deg, #007bff, #0056b3); color: white; }
+        .btn-secondary { background: linear-gradient(135deg, #6c757d, #545b62); color: white; }
+        .btn-success { background: linear-gradient(135deg, #28a745, #1e7e34); color: white; }
+        .btn-warning { background: linear-gradient(135deg, #ffc107, #e0a800); color: #212529; }
+        .btn-danger { background: linear-gradient(135deg, #dc3545, #bd2130); color: white; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .rule-item { background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 15px; border-left: 4px solid #007bff; }
+        .rule-item.disabled { border-left-color: #6c757d; opacity: 0.7; }
+        .rule-item.active { border-left-color: #28a745; background: #e8f5e8; }
+        .rule-header { display: flex; justify-content: between; align-items: center; margin-bottom: 10px; }
+        .rule-title { font-size: 18px; font-weight: bold; margin: 0; }
+        .rule-status { font-size: 14px; padding: 4px 8px; border-radius: 4px; }
+        .rule-status.enabled { background: #28a745; color: white; }
+        .rule-status.disabled { background: #6c757d; color: white; }
+        .rule-details { color: #666; margin: 10px 0; }
+        .rule-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+        @media (max-width: 768px) { 
+            .nav-links { 
+                display: flex; 
+                flex-direction: column; 
+                gap: 5px; 
+                align-items: center; 
+                margin-top: 10px; 
+            }
+            .nav-container { 
+                flex-direction: column; 
+                text-align: center; 
+            }
+            .nav-links a { 
+                padding: 8px 15px; 
+                font-size: 14px; 
+            }
+            .grid { grid-template-columns: 1fr; }
+            .rule-actions { justify-content: center; }
+        }
+        /* Modal styles */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
+        .modal-content { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 15px; max-width: 600px; width: 90%; max-height: 90%; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="/" class="logo">🌡️ 空调控制器</a>
+            <div class="nav-links">
+                <a href="/">📊 仪表板</a>
+                <a href="/rules.html" class="active">⚙️ 规则管理</a>
+                <a href="/control.html">❄️ 手动控制</a>
+                <a href="/settings.html">🔧 系统设置</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Active Rule Status -->
+        <div class="card status-card">
+            <h2>📊 规则状态</h2>
+            <div id="active-rule-status">正在加载当前规则状态...</div>
+            <div style="text-align: center; margin-top: 15px;">
+                <button onclick="loadActiveRule()" class="btn btn-secondary">🔄 更新状态</button>
+            </div>
+        </div>
+
+        <!-- Rules List -->
+        <div class="card">
+            <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 20px;">
+                <h2>📋 空调控制规则</h2>
+                <div>
+                    <button onclick="loadRules()" class="btn btn-secondary">🔄 重新加载</button>
+                    <button onclick="createNewRule()" class="btn btn-success">➕ 添加规则</button>
+                </div>
+            </div>
+            
+            <div id="rules-list">正在加载规则...</div>
+        </div>
+    </div>
+
+    <!-- Rule Editor Modal -->
+    <div id="rule-editor" class="modal">
+        <div class="modal-content">
+            <h2>[编辑] 规则配置</h2>
+            <form id="rule-form">
+                <input type="hidden" id="rule-id" name="id">
+                
+                <div class="form-group">
+                    <label>[名称] 规则名称：</label>
+                    <input type="text" id="rule-name" name="name" required placeholder="输入规则名称">
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="rule-enabled" name="enabled"> [激活] 启用规则
+                    </label>
+                </div>
+                
+                <div class="grid">
+                    <div>
+                        <h3>[时间] 时间条件</h3>
+                        <div class="form-group">
+                            <label>[开始] 开始时间 (0-23, -1=任意)：</label>
+                            <input type="number" id="rule-start-hour" name="startHour" min="-1" max="23" placeholder="-1">
+                        </div>
+                        <div class="form-group">
+                            <label>[结束] 结束时间 (0-23, -1=任意)：</label>
+                            <input type="number" id="rule-end-hour" name="endHour" min="-1" max="23" placeholder="-1">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3>[温度] 温度条件</h3>
+                        <div class="form-group">
+                            <label>[最低] 最低温度 (-999=任意)：</label>
+                            <input type="number" id="rule-min-temp" name="minTemp" step="0.1" placeholder="-999">
+                        </div>
+                        <div class="form-group">
+                            <label>[最高] 最高温度 (-999=任意)：</label>
+                            <input type="number" id="rule-max-temp" name="maxTemp" step="0.1" placeholder="-999">
+                        </div>
+                    </div>
+                </div>
+                
+                <h3>[空调] 空调动作</h3>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="rule-ac-on" name="acOn"> [电源] 开启空调
+                    </label>
+                </div>
+                
+                <div class="grid">
+                    <div class="form-group">
+                        <label>[温度] 设定温度 (°C)：</label>
+                        <input type="number" id="rule-set-temp" name="setTemp" min="16" max="32" step="0.5" placeholder="24">
+                    </div>
+                    <div class="form-group">
+                        <label>[风扇] 风扇速度：</label>
+                        <select id="rule-fan-speed" name="fanSpeed">
+                            <option value="0">自动</option>
+                            <option value="1">低速</option>
+                            <option value="2">中速</option>
+                            <option value="3">高速</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>[模式] 空调模式：</label>
+                    <select id="rule-mode" name="mode">
+                        <option value="0">制冷</option>
+                        <option value="1">制热</option>
+                        <option value="2">除湿</option>
+                        <option value="3">送风</option>
+                        <option value="4">自动</option>
+                    </select>
+                </div>
+                
+                <div class="grid">
+                    <div class="form-group">
+                        <label>[上下摆风] 垂直摆风：</label>
+                        <select id="rule-v-swing" name="vSwing">
+                            <option value="0">自动</option>
+                            <option value="1">向上</option>
+                            <option value="2">中间</option>
+                            <option value="3">向下</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>[左右摆风] 水平摆风：</label>
+                        <select id="rule-h-swing" name="hSwing">
+                            <option value="0">自动</option>
+                            <option value="1">向左</option>
+                            <option value="2">中间</option>
+                            <option value="3">向右</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div style="text-align: center; margin-top: 20px;">
+                    <button type="submit" class="btn btn-primary">[保存] 保存规则</button>
+                    <button type="button" onclick="deleteCurrentRule()" class="btn btn-danger" id="delete-rule-btn">[删除] 删除规则</button>
+                    <button type="button" onclick="closeRuleEditor()" class="btn btn-secondary">[取消] 取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="rules.js"></script>
+</body>
+</html>

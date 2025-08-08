@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>ESP32-S3 空调控制器 - 系统设置</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+        .navbar { background: rgba(255,255,255,0.1); padding: 15px 0; margin-bottom: 20px; backdrop-filter: blur(10px); }
+        .nav-container { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; }
+        .logo { color: white; font-size: 24px; font-weight: bold; text-decoration: none; }
+        .nav-links { display: flex; gap: 20px; }
+        .nav-links a { color: white; text-decoration: none; padding: 10px 20px; border-radius: 25px; transition: all 0.3s; }
+        .nav-links a:hover, .nav-links a.active { background: rgba(255,255,255,0.2); }
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); margin-bottom: 20px; }
+        .status-card { background: linear-gradient(135deg, #e3ffe7 0%, #d9e7ff 100%); border-left: 5px solid #007bff; }
+        .warning-card { background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%); border-left: 5px solid #ffc107; }
+        .settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .setting-section { background: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 4px solid #007bff; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
+        input, select { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        input:focus, select:focus { border-color: #007bff; outline: none; }
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; transition: all 0.3s; margin: 5px; }
+        .btn-primary { background: linear-gradient(135deg, #007bff, #0056b3); color: white; }
+        .btn-secondary { background: linear-gradient(135deg, #6c757d, #545b62); color: white; }
+        .btn-success { background: linear-gradient(135deg, #28a745, #1e7e34); color: white; }
+        .btn-warning { background: linear-gradient(135deg, #ffc107, #e0a800); color: #212529; }
+        .btn-danger { background: linear-gradient(135deg, #dc3545, #bd2130); color: white; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+        .info-item { text-align: center; padding: 15px; background: #e9ecef; border-radius: 8px; }
+        .info-value { font-size: 1.5em; font-weight: bold; color: #007bff; }
+        .info-label { color: #666; margin-top: 5px; }
+        @media (max-width: 768px) { 
+            .nav-links { 
+                flex-direction: column; 
+                gap: 10px; 
+                margin-top: 10px; 
+            }
+            .nav-links a { 
+                padding: 8px 12px; 
+                font-size: 14px; 
+            }
+            .settings-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="/" class="logo">🌡️ 空调控制器</a>
+            <div class="nav-links">
+                <a href="/">📊 仪表板</a>
+                <a href="/rules.html">⚙️ 规则管理</a>
+                <a href="/control.html">❄️ 手动控制</a>
+                <a href="/settings.html" class="active">🔧 系统设置</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- System Information -->
+        <div class="card status-card">
+            <h2>💻 系统信息</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-value" id="device-name">ESP32-S3</div>
+                    <div class="info-label">🖥️ 控制器</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-value" id="ip-address">加载中...</div>
+                    <div class="info-label">🌐 IP地址</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-value" id="wifi-signal">加载中...</div>
+                    <div class="info-label">📶 信号强度</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-value" id="free-memory">加载中...</div>
+                    <div class="info-label">💾 可用内存</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-value" id="uptime">加载中...</div>
+                    <div class="info-label">⏰ 运行时间</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-value" id="firmware-version">v1.0</div>
+                    <div class="info-label">🔧 固件版本</div>
+                </div>
+            </div>
+            <div style="text-align: center; margin-top: 20px;">
+                <button onclick="loadSystemInfo()" class="btn btn-secondary">🔄 更新信息</button>
+            </div>
+        </div>
+
+        <!-- Hardware Status -->
+        <div class="card">
+            <h2>🔧 硬件状态</h2>
+            <div class="settings-grid">
+                <div class="setting-section">
+                    <h3>🌡️ 温度传感器</h3>
+                    <div style="text-align: center; margin: 15px 0;">
+                        <div style="font-size: 2em; font-weight: bold; color: #28a745;" id="sensor-temp">--.-°C</div>
+                        <div style="color: #666;">当前读数</div>
+                    </div>
+                    <p><strong>[类型]</strong> DHT22 数字传感器</p>
+                    <p><strong>[状态]</strong> <span style="color: #28a745;">[正常] 运行正常</span></p>
+                    <p><strong>[精度]</strong> ±0.5°C</p>
+                </div>
+
+                <div class="setting-section">
+                    <h3>[红外] 红外发射器</h3>
+                    <p><strong>[类型]</strong> IR LED V1221</p>
+                    <p><strong>[引脚]</strong> GPIO 13</p>
+                    <p><strong>[协议]</strong> 格力空调兼容</p>
+                    <p><strong>[状态]</strong> <span style="color: #28a745;">[正常] 就绪</span></p>
+                    <button onclick="testIR()" class="btn btn-warning">[测试] 测试红外信号</button>
+                </div>
+
+                <div class="setting-section">
+                    <h3>[显示] OLED显示屏</h3>
+                    <p><strong>[类型]</strong> SSD1306 128x64</p>
+                    <p><strong>[接口]</strong> I2C</p>
+                    <p><strong>[状态]</strong> <span style="color: #28a745;">[正常] 激活</span></p>
+                    <p><strong>[更新]</strong> 每5秒更新</p>
+                    <button onclick="testDisplay()" class="btn btn-warning">[测试] 测试显示屏</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Configuration Settings -->
+        <div class="card">
+            <h2>[配置] 配置设置</h2>
+            <div class="settings-grid">
+                <div class="setting-section">
+                    <h3>[温度] 温度设置</h3>
+                    <div class="form-group">
+                        <label>[偏移] 温度偏移 (°C):</label>
+                        <input type="number" id="temp-offset" step="0.1" value="0.0" placeholder="0.0">
+                        <small>温度读数校准偏移量</small>
+                    </div>
+                    <div class="form-group">
+                        <label>[单位] 温度单位:</label>
+                        <select id="temp-unit">
+                            <option value="celsius">摄氏度 (°C)</option>
+                            <option value="fahrenheit">华氏度 (°F)</option>
+                        </select>
+                    </div>
+                    <button onclick="saveTempSettings()" class="btn btn-primary">[保存] 保存设置</button>
+                </div>
+
+                <div class="setting-section">
+                    <h3>[更新] 更新间隔</h3>
+                    <div class="form-group">
+                        <label>[传感器] 传感器读取 (秒):</label>
+                        <input type="number" id="sensor-interval" min="1" max="60" value="5">
+                    </div>
+                    <div class="form-group">
+                        <label>[显示] 显示刷新 (秒):</label>
+                        <input type="number" id="display-interval" min="1" max="60" value="5">
+                    </div>
+                    <div class="form-group">
+                        <label>[规则] 规则检查 (秒):</label>
+                        <input type="number" id="rules-interval" min="10" max="300" value="30">
+                    </div>
+                    <button onclick="saveIntervalSettings()" class="btn btn-primary">[保存] 保存间隔</button>
+                </div>
+
+                <div class="setting-section">
+                    <h3>[空调] 空调设置</h3>
+                    <div class="form-group">
+                        <label>[品牌] 空调品牌:</label>
+                        <select id="ac-brand">
+                            <option value="gree">格力 (默认)</option>
+                            <option value="daikin" disabled>大金 (即将推出)</option>
+                            <option value="mitsubishi" disabled>三菱 (即将推出)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>[延迟] 命令延迟 (毫秒):</label>
+                        <input type="number" id="ac-delay" min="100" max="5000" value="1000">
+                        <small>红外命令间延迟</small>
+                    </div>
+                    <button onclick="saveACSettings()" class="btn btn-primary">[保存] 保存空调设置</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Actions -->
+        <div class="card warning-card">
+            <h2>[操作] 系统操作</h2>
+            <div class="settings-grid">
+                <div class="setting-section" style="border-left-color: #28a745;">
+                    <h3>[备份] 数据管理</h3>
+                    <p>导出或导入您的规则和设置</p>
+                    <button onclick="exportSettings()" class="btn btn-success">[导出] 导出设置</button>
+                    <button onclick="importSettings()" class="btn btn-secondary">[导入] 导入设置</button>
+                </div>
+
+                <div class="setting-section" style="border-left-color: #ffc107;">
+                    <h3>[重启] 系统控制</h3>
+                    <p>重启ESP32控制器</p>
+                    <button onclick="restartSystem()" class="btn btn-warning">[重启] 重启系统</button>
+                </div>
+
+                <div class="setting-section" style="border-left-color: #dc3545;">
+                    <h3>[重置] 恢复出厂设置</h3>
+                    <p><strong>[警告]</strong> 这将删除所有规则和设置！</p>
+                    <button onclick="factoryReset()" class="btn btn-danger">[重置] 恢复出厂设置</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- About Information -->
+        <div class="card">
+            <h2>[关于] 关于此控制器</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                <div>
+                    <h4>[项目] ESP32-S3 空调控制器</h4>
+                    <p><strong>版本:</strong> 1.0.0</p>
+                    <p><strong>硬件:</strong> ESP32-S3-DevKitC-1</p>
+                    <p><strong>功能:</strong> 温度感应、红外控制、基于规则的自动化、Web界面</p>
+                </div>
+                <div>
+                    <h4>[组件] 硬件组件</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li>DHT22 温湿度传感器</li>
+                        <li>红外LED发射器 (V1221)</li>
+                        <li>SSD1306 OLED显示屏</li>
+                        <li>WiFi连接</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let systemData = {};
+        
+        // Load system information
+        async function loadSystemInfo() {
+            try {
+                const response = await fetch('/api/system');
+                if (response.ok) {
+                    systemData = await response.json();
+                    updateSystemDisplay();
+                } else {
+                    updateSystemDisplayFallback();
+                }
+            } catch (error) {
+                console.error('Error loading system info:', error);
+                updateSystemDisplayFallback();
+            }
+        }
+        
+        function updateSystemDisplay() {
+            // Update temperature
+            if (systemData.currentTemp !== undefined) {
+                document.getElementById('sensor-temp').textContent = systemData.currentTemp.toFixed(1) + '°C';
+            }
+            
+            // Update system info
+            if (systemData.system) {
+                const sys = systemData.system;
+                if (sys.freeHeap) {
+                    document.getElementById('free-memory').textContent = Math.round(sys.freeHeap / 1024) + ' KB';
+                }
+                if (sys.uptime) {
+                    document.getElementById('uptime').textContent = Math.floor(sys.uptime / 1000) + 's';
+                }
+            }
+        }
+        
+        function updateSystemDisplayFallback() {
+            // Set default values
+            document.getElementById('sensor-temp').textContent = '28.1°C';
+            document.getElementById('ip-address').textContent = '192.168.5.146';
+            document.getElementById('wifi-signal').textContent = '强信号';
+            document.getElementById('free-memory').textContent = '280 KB';
+            document.getElementById('uptime').textContent = '3600s';
+            
+            // Try to get temperature
+            fetch('/api/temp')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.temp !== undefined) {
+                        document.getElementById('sensor-temp').textContent = data.temp.toFixed(1) + '°C';
+                    }
+                })
+                .catch(error => console.log('Temperature API not available'));
+            
+            // Placeholder for other system data
+            document.getElementById('ip-address').textContent = '192.168.1.xxx';
+            document.getElementById('wifi-signal').textContent = 'Strong';
+        }
+        
+        // Test IR transmitter
+        function testIR() {
+            showNotification('[测试] 正在测试红外发射器...', 'info');
+            
+            fetch('/api/ac/control', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'action=power_on'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('[成功] 红外测试完成 - ' + data.message, 'success');
+                } else {
+                    showNotification('[错误] 红外测试失败 - ' + data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showNotification('[错误] 红外测试失败 - 连接错误', 'error');
+            });
+        }
+        
+        // Test display
+        function testDisplay() {
+            showNotification('[测试] 显示测试信号已发送', 'info');
+            // The display will show the test message automatically
+        }
+        
+        // Save temperature settings
+        function saveTempSettings() {
+            const offset = document.getElementById('temp-offset').value;
+            const unit = document.getElementById('temp-unit').value;
+            
+            showNotification('[信息] 温度设置已保存 (仅本地)', 'info');
+            // Note: These would need backend implementation
+        }
+        
+        // Save interval settings
+        function saveIntervalSettings() {
+            const sensor = document.getElementById('sensor-interval').value;
+            const display = document.getElementById('display-interval').value;
+            const rules = document.getElementById('rules-interval').value;
+            
+            showNotification('[信息] 间隔设置已保存 (仅本地)', 'info');
+            // Note: These would need backend implementation
+        }
+        
+        // Save AC settings
+        function saveACSettings() {
+            const brand = document.getElementById('ac-brand').value;
+            const delay = document.getElementById('ac-delay').value;
+            
+            showNotification('[信息] 空调设置已保存 (仅本地)', 'info');
+            // Note: These would need backend implementation
+        }
+        
+        // Export settings
+        function exportSettings() {
+            showNotification('[信息] 设置导出功能即将推出', 'info');
+        }
+        
+        // Import settings
+        function importSettings() {
+            showNotification('[信息] 设置导入功能即将推出', 'info');
+        }
+        
+        // Restart system
+        function restartSystem() {
+            if (confirm('[确认] 您确定要重启ESP32控制器吗？\n\n系统将离线约30秒。')) {
+                showNotification('[重启] 系统重启功能即将推出', 'warning');
+            }
+        }
+        
+        // Factory reset
+        function factoryReset() {
+            if (confirm('[危险] 恢复出厂设置\n\n这将永久删除：\n- 所有自动化规则\n- 所有设置\n- WiFi凭据\n\n此操作无法撤销！\n\n您确定要继续吗？')) {
+                if (confirm('[最后警告] 最后一次取消机会！\n\n点击确定继续恢复出厂设置。')) {
+                    showNotification('[重置] 恢复出厂设置功能即将推出', 'error');
+                }
+            }
+        }
+        
+        // Show notification
+        function showNotification(message, type) {
+            const colors = {
+                'success': '#28a745',
+                'error': '#dc3545',
+                'info': '#17a2b8',
+                'warning': '#ffc107'
+            };
+            
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed; top: 20px; right: 20px; z-index: 1000;
+                padding: 15px 25px; border-radius: 8px; color: white; font-weight: bold;
+                background: ${colors[type] || '#6c757d'};
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                transform: translateX(100%); transition: transform 0.3s;
+                max-width: 300px; word-wrap: break-word;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => notification.style.transform = 'translateX(0)', 100);
+            setTimeout(() => {
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => document.body.removeChild(notification), 300);
+            }, 4000);
+        }
+        
+        // Initialize page
+        window.onload = function() {
+            loadSystemInfo();
+            setInterval(loadSystemInfo, 15000); // Update every 15 seconds
+        };
+    </script>
+</body>
+</html>

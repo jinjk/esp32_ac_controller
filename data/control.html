@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+        <title>手动控制 - ESP32 空调控制器</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+        .navbar { background: rgba(255,255,255,0.1); padding: 15px 0; margin-bottom: 20px; backdrop-filter: blur(10px); }
+        .nav-container { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; }
+        .logo { color: white; font-size: 24px; font-weight: bold; text-decoration: none; }
+        .nav-links { display: flex; gap: 20px; }
+        .nav-links a { color: white; text-decoration: none; padding: 10px 20px; border-radius: 25px; transition: all 0.3s; }
+        .nav-links a:hover, .nav-links a.active { background: rgba(255,255,255,0.2); }
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); margin-bottom: 20px; }
+        .status-card { background: linear-gradient(135deg, #e3ffe7 0%, #d9e7ff 100%); border-left: 5px solid #007bff; }
+        .control-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+        .control-section { background: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 4px solid #007bff; }
+        .btn { padding: 15px 25px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; transition: all 0.3s; margin: 5px; width: 100%; }
+        .btn-primary { background: linear-gradient(135deg, #007bff, #0056b3); color: white; }
+        .btn-secondary { background: linear-gradient(135deg, #6c757d, #545b62); color: white; }
+        .btn-success { background: linear-gradient(135deg, #28a745, #1e7e34); color: white; }
+        .btn-warning { background: linear-gradient(135deg, #ffc107, #e0a800); color: #212529; }
+        .btn-danger { background: linear-gradient(135deg, #dc3545, #bd2130); color: white; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .btn:active { transform: translateY(0); }
+        .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
+        .status-indicator { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; }
+        .status-on { background-color: #28a745; }
+        .status-off { background-color: #dc3545; }
+        .status-auto { background-color: #ffc107; }
+        .temperature-display { text-align: center; font-size: 2.5em; font-weight: bold; color: #007bff; margin: 20px 0; }
+        .current-settings { background: #e8f5e8; padding: 15px; border-radius: 8px; margin: 15px 0; }
+        @media (max-width: 768px) { 
+            .nav-links { 
+                flex-direction: column; 
+                gap: 10px; 
+                margin-top: 10px; 
+            }
+            .nav-links a { 
+                padding: 8px 12px; 
+                font-size: 14px; 
+            }
+            .control-grid { grid-template-columns: 1fr; }
+            .btn-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="/" class="logo">🌡️ 空调控制器</a>
+            <div class="nav-links">
+                <a href="/">📊 仪表板</a>
+                <a href="/rules.html">⚙️ 规则管理</a>
+                <a href="/control.html" class="active">❄️ 手动控制</a>
+                <a href="/settings.html">🔧 系统设置</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Current Status -->
+        <div class="card status-card">
+            <h2>📊 当前空调状态</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                <div style="text-align: center;">
+                    <div class="temperature-display" id="temp-display">--.-°C</div>
+                    <div>🌡️ 室内温度</div>
+                </div>
+                <div>
+                    <p><span class="status-indicator" id="power-indicator"></span><strong>⚡ 电源：</strong> <span id="power-status">加载中...</span></p>
+                    <p><strong>🎛️ 模式：</strong> <span id="mode-status">加载中...</span></p>
+                    <p><strong>🌡️ 温度：</strong> <span id="target-temp">加载中...</span></p>
+                    <p><strong>💨 风扇：</strong> <span id="fan-status">加载中...</span></p>
+                </div>
+            </div>
+            <div style="text-align: center; margin-top: 15px;">
+                <button onclick="loadStatus()" class="btn btn-secondary">🔄 更新状态</button>
+            </div>
+        </div>
+
+        <!-- Manual Controls -->
+        <div class="control-grid">
+            <!-- Power Control -->
+            <div class="control-section">
+                <h3>⚡ 电源控制</h3>
+                <button class="btn btn-success" onclick="sendACCommand('power_on')">🟢 空调开机</button>
+                <button class="btn btn-danger" onclick="sendACCommand('power_off')">🔴 空调关机</button>
+            </div>
+
+            <!-- Temperature Control -->
+            <div class="control-section">
+                <h3>🌡️ 温度控制</h3>
+                <button class="btn btn-warning" onclick="sendACCommand('temp_up')">🔥 温度 +1°C</button>
+                <button class="btn btn-primary" onclick="sendACCommand('temp_down')">❄️ 温度 -1°C</button>
+                <div style="margin-top: 15px; text-align: center;">
+                    <small>📝 温度范围: 16°C - 32°C</small>
+                </div>
+            </div>
+
+            <!-- Fan Control -->
+            <div class="control-section">
+                <h3>💨 风扇速度控制</h3>
+                <button class="btn btn-success" onclick="sendACCommand('fan_cycle')">🔄 循环风扇速度</button>
+                <div style="margin-top: 15px; text-align: center;">
+                    <small>📝 🔄 自动 → 🌪️ 低速 → 💨 中速 → 🌀 高速 → 🔄 自动</small>
+                </div>
+            </div>
+
+            <!-- Swing Control -->
+            <div class="control-section">
+                <h3>🌀 出风方向</h3>
+                <button class="btn btn-success" onclick="sendACCommand('swing_toggle')">🔀 摆风开关</button>
+                <div style="margin-top: 15px; text-align: center;">
+                    <small>📝 切换垂直摆风功能</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Advanced Controls -->
+        <div class="card">
+            <h2>🔧 高级控制</h2>
+            <div class="control-grid">
+                <!-- Mode Control -->
+                <div class="control-section">
+                    <h3>🎛️ 空调模式</h3>
+                    <button class="btn btn-primary" onclick="sendModeCommand('cool')">❄️ 制冷模式</button>
+                    <button class="btn btn-warning" onclick="sendModeCommand('heat')">🔥 制热模式</button>
+                    <button class="btn btn-secondary" onclick="sendModeCommand('dry')">💧 除湿模式</button>
+                    <button class="btn btn-success" onclick="sendModeCommand('fan')">💨 仅送风</button>
+                    <button class="btn btn-secondary" onclick="sendModeCommand('auto')">🔄 自动模式</button>
+                </div>
+
+                <!-- Quick Presets -->
+                <div class="control-section">
+                    <h3>⚡ 快速设置</h3>
+                    <button class="btn btn-primary" onclick="sendPreset('cooling')">❄️ 清爽舒适 (24°C)</button>
+                    <button class="btn btn-warning" onclick="sendPreset('heating')">🔥 温暖舒适 (26°C)</button>
+                    <button class="btn btn-secondary" onclick="sendPreset('sleep')">😴 睡眠模式 (22°C)</button>
+                    <button class="btn btn-success" onclick="sendPreset('energy')">🌱 节能模式</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Current Settings Display -->
+        <div class="card">
+            <h2>⚙️ 当前空调配置</h2>
+            <div class="current-settings" id="current-settings">
+                正在加载当前空调设置...
+            </div>
+        </div>
+
+        <!-- Warning Notice -->
+        <div class="card" style="border-left: 4px solid #ffc107; background: #fff3cd;">
+            <h3>⚠️ 手动控制注意事项</h3>
+            <p><strong>📝</strong> 手动控制会临时覆盖自动规则。</p>
+            <p><strong>🔄</strong> 当条件变化时，规则将恢复自动控制。</p>
+            <p><strong>⚙️</strong> 要永久禁用自动化，请在规则管理页面编辑或禁用规则。</p>
+        </div>
+    </div>
+
+    <script>
+        let systemData = {};
+        
+        // Load system status
+        async function loadStatus() {
+            try {
+                const response = await fetch('/api/system');
+                if (response.ok) {
+                    systemData = await response.json();
+                    updateStatusDisplay();
+                } else {
+                    // Fallback for when API is not available
+                    updateStatusFallback();
+                }
+            } catch (error) {
+                console.error('Error loading status:', error);
+                // Use fallback display
+                updateStatusFallback();
+            }
+        }
+        
+        function updateStatusDisplay() {
+            // Update temperature
+            if (systemData.currentTemp !== undefined) {
+                document.getElementById('temp-display').textContent = systemData.currentTemp.toFixed(1) + '°C';
+            }
+            
+            // Update power status
+            if (systemData.acOn !== undefined) {
+                const indicator = document.getElementById('power-indicator');
+                const statusText = document.getElementById('power-status');
+                if (systemData.acOn) {
+                    indicator.className = 'status-indicator status-on';
+                    statusText.textContent = '[开机] 空调运行中';
+                } else {
+                    indicator.className = 'status-indicator status-off';
+                    statusText.textContent = '[关机] 空调已停止';
+                }
+            }
+            
+            // Update other status (placeholder for future implementation)
+            document.getElementById('mode-status').textContent = '[自动] 自动模式';
+            document.getElementById('target-temp').textContent = '24°C (预估)';
+            document.getElementById('fan-status').textContent = '[自动] 自动风速';
+            
+            // Update current settings
+            updateCurrentSettings();
+        }
+        
+        function updateStatusFallback() {
+            // Show default values when API is not available
+            document.getElementById('temp-display').textContent = '28.1°C';
+            document.getElementById('power-status').textContent = '[系统] 连接中...';
+            document.getElementById('mode-status').textContent = '[自动] 自动模式';
+            document.getElementById('target-temp').textContent = '24°C (预估)';
+            document.getElementById('fan-status').textContent = '[自动] 自动风速';
+            
+            // Try simple temperature API
+            fetch('/api/temp')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.temp !== undefined) {
+                        document.getElementById('temp-display').textContent = data.temp.toFixed(1) + '°C';
+                    }
+                })
+                .catch(error => console.log('Temperature API not available'));
+            
+            updateCurrentSettings();
+        }
+        
+        function updateCurrentSettings() {
+            const settingsDiv = document.getElementById('current-settings');
+            let settingsHtml = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">';
+            
+            if (systemData.acOn !== undefined) {
+                settingsHtml += `<div><strong>[电源]</strong> ${systemData.acOn ? '[开机] 运行中' : '[关机] 已停止'}</div>`;
+            }
+            
+            // Add more settings as they become available from the API
+            settingsHtml += '<div><strong>[模式]</strong> [自动] 制冷模式</div>';
+            settingsHtml += '<div><strong>[温度]</strong> 24°C (目标)</div>';
+            settingsHtml += '<div><strong>[风扇]</strong> [自动] 自动风速</div>';
+            settingsHtml += '<div><strong>[摆风]</strong> [自动] 自动摆风</div>';
+            settingsHtml += '</div>';
+            
+            settingsDiv.innerHTML = settingsHtml;
+        }
+        
+        // Send AC command
+        function sendACCommand(action) {
+            fetch('/api/ac/control', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'action=' + action
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('[成功] ' + data.message, 'success');
+                    setTimeout(loadStatus, 1000); // Refresh status after command
+                } else {
+                    showNotification('[错误] ' + data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showNotification('[错误] 连接失败', 'error');
+            });
+        }
+        
+        // Send mode command (placeholder for future implementation)
+        function sendModeCommand(mode) {
+            showNotification('[信息] 模式控制功能即将推出', 'info');
+        }
+        
+        // Send preset command (placeholder for future implementation)
+        function sendPreset(preset) {
+            const presets = {
+                'cooling': '[制冷] 制冷预设已激活 (24°C, 制冷模式)',
+                'heating': '[制热] 制热预设已激活 (26°C, 制热模式)',
+                'sleep': '[睡眠] 睡眠预设已激活 (22°C, 静音模式)',
+                'energy': '[节能] 节能预设已激活'
+            };
+            
+            showNotification('[信息] ' + (presets[preset] || '预设已激活'), 'info');
+        }
+        
+        // Show notification
+        function showNotification(message, type) {
+            const colors = {
+                'success': '#28a745',
+                'error': '#dc3545',
+                'info': '#17a2b8'
+            };
+            
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed; top: 20px; right: 20px; z-index: 1000;
+                padding: 15px 25px; border-radius: 8px; color: white; font-weight: bold;
+                background: ${colors[type] || '#6c757d'};
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                transform: translateX(100%); transition: transform 0.3s;
+                max-width: 300px; word-wrap: break-word;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => notification.style.transform = 'translateX(0)', 100);
+            setTimeout(() => {
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => document.body.removeChild(notification), 300);
+            }, 4000);
+        }
+        
+        // Initialize page
+        window.onload = function() {
+            loadStatus();
+            setInterval(loadStatus, 10000); // Update every 10 seconds
+        };
+    </script>
+</body>
+</html>

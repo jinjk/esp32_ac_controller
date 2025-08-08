@@ -55,30 +55,44 @@ function updateActiveRuleDisplay(data) {
     statusHtml += `<div><strong>[时间] 当前时间：</strong> ${timeDisplay}</div>`;
     statusHtml += `</div>`;
     
-    if (data.activeRuleId && data.activeRuleId !== -1 && data.activeRule) {
-        const rule = data.activeRule;
-        statusHtml += `<div style="margin-top: 15px; padding: 15px; background: #e8f5e8; border-radius: 8px; border-left: 4px solid #28a745;">`;
-        statusHtml += `<h4 style="margin: 0 0 10px 0; color: #28a745;">✅ ${rule.name} (ID: ${rule.id})</h4>`;
+    if (data.activeRuleId && data.activeRuleId !== -1) {
+        // If we have an activeRuleId, try to get the rule details
+        let rule = data.activeRule;
         
-        const conditionsHtml = [];
-        if (rule.startHour !== -1 && rule.endHour !== -1) {
-            conditionsHtml.push(`🕐 ${rule.startHour}:00-${rule.endHour}:00`);
-        }
-        if (rule.minTemp !== -999 || rule.maxTemp !== -999) {
-            const minStr = rule.minTemp !== -999 ? `≥${rule.minTemp}°C` : '';
-            const maxStr = rule.maxTemp !== -999 ? `≤${rule.maxTemp}°C` : '';
-            conditionsHtml.push(`🌡️ ${minStr}${minStr && maxStr ? ' & ' : ''}${maxStr}`);
+        // If activeRule wasn't provided by the API, try to find it in currentRules
+        if (!rule && currentRules.length > 0) {
+            rule = currentRules.find(r => r.id === data.activeRuleId);
         }
         
-        if (conditionsHtml.length > 0) {
-            statusHtml += `<p><strong>📋 条件：</strong> ${conditionsHtml.join(', ')}</p>`;
+        if (rule) {
+            statusHtml += `<div style="margin-top: 15px; padding: 15px; background: #e8f5e8; border-radius: 8px; border-left: 4px solid #28a745;">`;
+            statusHtml += `<h4 style="margin: 0 0 10px 0; color: #28a745;">✅ ${rule.name} (ID: ${rule.id})</h4>`;
+            
+            const conditionsHtml = [];
+            if (rule.startHour !== -1 && rule.endHour !== -1) {
+                conditionsHtml.push(`🕐 ${rule.startHour}:00-${rule.endHour}:00`);
+            }
+            if (rule.minTemp !== -999 || rule.maxTemp !== -999) {
+                const minStr = rule.minTemp !== -999 ? `≥${rule.minTemp}°C` : '';
+                const maxStr = rule.maxTemp !== -999 ? `≤${rule.maxTemp}°C` : '';
+                conditionsHtml.push(`🌡️ ${minStr}${minStr && maxStr ? ' & ' : ''}${maxStr}`);
+            }
+            
+            if (conditionsHtml.length > 0) {
+                statusHtml += `<p><strong>📋 条件：</strong> ${conditionsHtml.join(', ')}</p>`;
+            }
+            
+            statusHtml += `<p><strong>❄️ 空调动作：</strong> ${rule.acOn ? '✅ 开机' : '❌ 关机'}`;
+            if (rule.acOn) {
+                statusHtml += ` → 🌡️ ${rule.setTemp}°C, 💨 ${['🔄 自动', '🌪️ 低速', '💨 中速', '🌀 高速'][rule.fanSpeed]}, 🎛️ ${['❄️ 制冷', '🔥 制热', '💧 除湿', '💨 送风', '🔄 自动'][rule.mode]}`;
+            }
+            statusHtml += `</p></div>`;
+        } else {
+            // We have activeRuleId but couldn't find rule details
+            statusHtml += `<div style="margin-top: 15px; padding: 15px; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">`;
+            statusHtml += `<h4 style="margin: 0; color: #856404;">⚠️ 规则 ID ${data.activeRuleId} 激活中 - 规则详情加载中...</h4>`;
+            statusHtml += `</div>`;
         }
-        
-        statusHtml += `<p><strong>❄️ 空调动作：</strong> ${rule.acOn ? '✅ 开机' : '❌ 关机'}`;
-        if (rule.acOn) {
-            statusHtml += ` → 🌡️ ${rule.setTemp}°C, 💨 ${['🔄 自动', '🌪️ 低速', '💨 中速', '🌀 高速'][rule.fanSpeed]}, 🎛️ ${['❄️ 制冷', '🔥 制热', '💧 除湿', '💨 送风', '🔄 自动'][rule.mode]}`;
-        }
-        statusHtml += `</p></div>`;
     } else {
         statusHtml += `<div style="margin-top: 15px; padding: 15px; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">`;
         statusHtml += `<h4 style="margin: 0; color: #856404;">[STANDBY] No active rule - AC unchanged</h4>`;

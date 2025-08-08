@@ -4,6 +4,7 @@
 #include <IRremoteESP8266.h>
 #include <ir_Gree.h>
 #include <time.h>
+#include <WiFi.h>
 
 // Sleep interval for control loop (milliseconds)
 static const uint32_t CONTROL_LOOP_SLEEP_MS = 10 * 1000;
@@ -37,8 +38,63 @@ ACState getCurrentACState() {
 }
 
 void initTime() {
-  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-  Serial.println("Time synchronized");
+  Serial.println("Initializing time synchronization...");
+  
+  // Wait for WiFi to be fully connected
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("⚠️ WiFi not connected, waiting...");
+    int attempts = 0;
+    while (WiFi.status() != WL_CONNECTED && attempts < 30) {
+      delay(1000);
+      Serial.print(".");
+      attempts++;
+    }
+    if (WiFi.status() != WL_CONNECTED) {
+      Serial.println("\n❌ WiFi connection failed - time sync will not work");
+      return;
+    }
+    Serial.println("\n✅ WiFi connected");
+  }
+  
+  // Configure NTP with multiple servers for reliability
+  configTime(gmtOffset_sec, daylightOffset_sec, 
+            "pool.ntp.org", 
+            "time.nist.gov", 
+            "time.cloudflare.com");
+  
+  Serial.println("📡 Requesting time from NTP servers...");
+  
+  // Wait for time synchronization (up to 30 seconds)
+  struct tm timeinfo;
+  int attempts = 0;
+  bool timeSet = false;
+  
+  while (attempts < 30 && !timeSet) {
+    if (getLocalTime(&timeinfo)) {
+      // Check if we got a reasonable time (after year 2020)
+      if (timeinfo.tm_year > (2020 - 1900)) {
+        timeSet = true;
+        Serial.printf("✅ Time synchronized: %04d-%02d-%02d %02d:%02d:%02d (GMT+8)\n",
+                     timeinfo.tm_year + 1900, 
+                     timeinfo.tm_mon + 1, 
+                     timeinfo.tm_mday,
+                     timeinfo.tm_hour, 
+                     timeinfo.tm_min, 
+                     timeinfo.tm_sec);
+        break;
+      }
+    }
+    delay(1000);
+    attempts++;
+    if (attempts % 5 == 0) {
+      Serial.printf("⏳ Still waiting for time sync... (%d/30)\n", attempts);
+    }
+  }
+  
+  if (!timeSet) {
+    Serial.println("❌ Time synchronization failed - using default time");
+    Serial.println("⚠️ Rule scheduling may not work correctly");
+  }
 }
 
 void controlTask(void* param) {

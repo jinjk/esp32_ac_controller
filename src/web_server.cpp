@@ -40,11 +40,7 @@ void initWiFi() {
 }
 
 void setupWebServer() {
-  // Initialize SPIFFS
-  if(!SPIFFS.begin(true)){
-    Serial.println("An Error has occurred while mounting SPIFFS");
-    return;
-  }
+  // Note: SPIFFS is now initialized in main.cpp before this function is called
   
   // REST API endpoints
   server.on("/api/ac/control", HTTP_POST, handleACControl);

@@ -1,6 +1,7 @@
 // ===== PlatformIO Project: ESP32-S3 AC Controller (Modular Design) =====
 #include <Arduino.h>
 #include <WiFi.h>
+#include <SPIFFS.h>
 
 // Include all module headers
 #include "config.h"
@@ -12,6 +13,16 @@
 #include "power_management.h"
 #include "task_manager.h"
 
+// Initialize SPIFFS file system
+void initSPIFFS() {
+  Serial.println("Initializing SPIFFS...");
+  if(!SPIFFS.begin(true)){
+    Serial.println("❌ An Error has occurred while mounting SPIFFS");
+    return;
+  }
+  Serial.println("✅ SPIFFS mounted successfully");
+}
+
 void setup() {
   Serial.begin(115200);
   delay(1000); // Give serial time to initialize
@@ -21,10 +32,16 @@ void setup() {
   // Initialize power management first for optimal efficiency
   initPowerManagement();
   
-  // Initialize WiFi first
+  // Initialize SPIFFS file system first
+  initSPIFFS();
+  
+  // Initialize WiFi
   initWiFi();
   
-  // Initialize time synchronization
+  // Give WiFi extra time to stabilize before time sync
+  delay(2000);
+  
+  // Initialize time synchronization (after WiFi is stable)
   initTime();
   
   // Initialize hardware components
@@ -32,11 +49,11 @@ void setup() {
   initSensors();
   initIR();
   
-  // Initialize rule system with persistence
+  // Initialize rule system with persistence (after SPIFFS is mounted)
   loadRulesFromSPIFFS();
   Serial.println("✅ Rule system initialized with persistent storage");
   
-  // Setup web server
+  // Setup web server (SPIFFS already initialized)
   setupWebServer();
   
   // Create only essential tasks for maximum power efficiency

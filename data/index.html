@@ -1,9 +1,12 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
     <title>ESP32-S3 AC Controller</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
+    <meta name="viewport" content="width=device-width, initial-scale=1">                <button class="btn btn-primary" onclick="sendACCommand('power_on')">[ON] Power ON</button>
+                <button class="btn btn-secondary" onclick="sendACCommand('power_off')">Power OFF</button>
+                <button class="btn btn-success" onclick="sendACCommand('temp_up')">Temp UP</button>
+                <button class="btn btn-warning" onclick="sendACCommand('temp_down')">[COOL] Temp DOWN</button> <style>
         body { font-family: Arial, sans-serif; margin: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
         .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
         .status { background: linear-gradient(135deg, #e3ffe7 0%, #d9e7ff 100%); padding: 20px; border-radius: 10px; margin-bottom: 25px; border-left: 5px solid #007bff; }
@@ -45,9 +48,9 @@
             } catch (error) {
                 console.error('Error loading system data:', error);
                 // Show fallback data
-                document.getElementById('temperature-status').textContent = '🌡️ Temperature: Loading...';
-                document.getElementById('ac-status').textContent = '❄️ AC Status: Loading...';
-                document.getElementById('mode-status').textContent = '🕐 Mode: Loading...';
+                document.getElementById('temperature-status').textContent = '[TEMP] Temperature: Loading...';
+                document.getElementById('ac-status').textContent = '[AC] AC Status: Loading...';
+                document.getElementById('mode-status').textContent = '[TIME] Mode: Loading...';
             }
         }
         
@@ -58,11 +61,11 @@
         function updateSystemDisplay() {
             // Update system status
             if (systemData.currentTemp !== undefined) {
-                document.getElementById('temperature-status').textContent = '🌡️ Temperature: ' + systemData.currentTemp.toFixed(1) + '°C';
+                document.getElementById('temperature-status').textContent = '[TEMP] Temperature: ' + systemData.currentTemp.toFixed(1) + '°C';
             }
             
             if (systemData.acOn !== undefined) {
-                document.getElementById('ac-status').textContent = '❄️ AC Status: ' + (systemData.acOn ? '🟢 ON' : '🔴 OFF');
+                document.getElementById('ac-status').textContent = '[AC] AC Status: ' + (systemData.acOn ? '[ON]' : '[OFF]');
             }
             
             // Update system info
@@ -101,7 +104,7 @@
         
         function controlTask(taskName, action) {
             // Task control removed - only rule-based control now
-            showStatus('⚠️ Task control disabled - Use rule-based system instead', false);
+            showStatus('[WARN] Task control disabled - Use rule-based system instead', false);
         }
         
         function sendACCommand(action) {
@@ -113,18 +116,18 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    showStatus('✅ ' + data.message, true);
+                    showStatus('[OK] ' + data.message, true);
                     // Update AC status display if available
                     if (data.acState) {
                         console.log('AC State:', data.acState);
                     }
                 } else {
-                    showStatus('❌ ' + data.message, false);
+                    showStatus('[ERROR] ' + data.message, false);
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                showStatus('❌ Error sending AC command', false);
+                showStatus('[ERROR] Error sending AC command', false);
             });
         }
         
@@ -139,7 +142,7 @@
         function updateSettings(event, type) {
             event.preventDefault();
             // Legacy settings removed - only rule-based control now
-            showStatus('⚠️ Legacy settings disabled - Use rule-based system instead', false);
+            showStatus('[WARN] Legacy settings disabled - Use rule-based system instead', false);
         }
         
         setInterval(loadSystemData, 5000); // Update system data every 5 seconds
@@ -153,27 +156,27 @@
 </head>
 <body>
 <div class="container">
-    <h2>🌡️ ESP32-S3 AC Controller</h2>
+    <h2>[TEMP] ESP32-S3 AC Controller</h2>
     
     <div class="status">
-        <p><strong>📊 System Status:</strong></p>
-        <p id="temperature-status">🌡️ Temperature: Loading...</p>
-        <p id="ac-status">❄️ AC Status: Loading...</p>
-        <p id="ir-status-text">📡 IR System: Gree AC Library Ready ✅</p>
+        <p><strong>[INFO] System Status:</strong></p>
+        <p id="temperature-status">[TEMP] Temperature: Loading...</p>
+        <p id="ac-status">[AC] AC Status: Loading...</p>
+        <p id="ir-status-text">[IR] IR System: Gree AC Library Ready [OK]</p>
         <p id="system-info" style="font-size: 0.9em; color: #666;">Loading system info...</p>
     </div>
     
     
     <div class="grid">
         <div>
-            <h3>🌬️ Gree AC Control</h3>
+            <h3>[AC] Gree AC Control</h3>
             <div class="control-group" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 20px;">
-                <button class="btn btn-primary" onclick="sendACCommand('power_on')">⚡ Power ON</button>
-                <button class="btn btn-secondary" onclick="sendACCommand('power_off')">⭕ Power OFF</button>
-                <button class="btn btn-warning" onclick="sendACCommand('temp_up')">🔥 Temp UP</button>
-                <button class="btn btn-warning" onclick="sendACCommand('temp_down')">❄️ Temp DOWN</button>
-                <button class="btn btn-success" onclick="sendACCommand('fan_cycle')">💨 Fan Speed</button>
-                <button class="btn btn-success" onclick="sendACCommand('swing_toggle')">↔️ Swing Toggle</button>
+                <button class="btn btn-primary" onclick="sendACCommand('power_on')">[ON] Power ON</button>
+                <button class="btn btn-secondary" onclick="sendACCommand('power_off')">[OFF] Power OFF</button>
+                <button class="btn btn-warning" onclick="sendACCommand('temp_up')">[HOT] Temp UP</button>
+                <button class="btn btn-warning" onclick="sendACCommand('temp_down')">[COLD] Temp DOWN</button>
+                <button class="btn btn-success" onclick="sendACCommand('fan_cycle')">[FAN] Fan Speed</button>
+                <button class="btn btn-success" onclick="sendACCommand('swing_toggle')">[SWING] Swing Toggle</button>
             </div>
             <div id="ac-status" style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 5px; display: none;"></div>
         </div>
@@ -182,7 +185,7 @@
 
 <!-- Rule Management Section -->
 <div class="container">
-    <h2>🎯 Rule-Based AC Control</h2>
+    <h2>[RULES] Rule-Based AC Control</h2>
     
     <!-- Active Rule Display -->
     <div class="status">
@@ -225,19 +228,19 @@
                             <input type="number" id="rule-start-hour" name="startHour" min="-1" max="23">
                         </div>
                         <div class="form-group">
-                            <label>🌇 End Hour (0-23, -1=any):</label>
+                            <label>[SUNSET] End Hour (0-23, -1=any):</label>
                             <input type="number" id="rule-end-hour" name="endHour" min="-1" max="23">
                         </div>
                     </div>
                     
                     <div>
-                        <h4>🌡️ Temperature Conditions</h4>
+                        <h4>[TEMP] Temperature Conditions</h4>
                         <div class="form-group">
-                            <label>🔥 Min Temperature (-999=any):</label>
+                            <label>[HOT] Min Temperature (-999=any):</label>
                             <input type="number" id="rule-min-temp" name="minTemp" step="0.1">
                         </div>
                         <div class="form-group">
-                            <label>❄️ Max Temperature (-999=any):</label>
+                            <label>[COLD] Max Temperature (-999=any):</label>
                             <input type="number" id="rule-max-temp" name="maxTemp" step="0.1">
                         </div>
                     </div>

@@ -4,13 +4,14 @@
 #include "config.h"
 
 // Forward declarations
-class Adafruit_SHT31;
+class SHTSensor;
 
 // Sensor management functions
 void initSensors();
 float readTemperature();
+float readHumidity();
 
 // Global sensor objects
-extern Adafruit_SHT31 sht31;
+extern SHTSensor sht;
 
 #endif

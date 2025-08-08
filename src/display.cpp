@@ -2,6 +2,10 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <Wire.h>
+#include <WiFi.h>
+
+// Display update interval (milliseconds)
+const int DISPLAY_UPDATE_INTERVAL_MS = 5000;
 
 // Global display object
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
@@ -27,9 +31,17 @@ void updateDisplay() {
 
   display.clearDisplay();
   display.setCursor(0, 0);
-  display.printf("Temp: %.1fC\n", currentTemp);
+  display.printf("Temp: %.1f C\n", currentTemp);
   display.printf("Rule: %s\n", activeRuleId != -1 ? "Active" : "None");
   display.printf("Time: %02d:%02d\n", timeinfo->tm_hour, timeinfo->tm_min);
+  
+  // Show IP address if connected to WiFi
+  if (WiFi.status() == WL_CONNECTED) {
+    display.printf("IP: %s\n", WiFi.localIP().toString().c_str());
+  } else {
+    display.printf("WiFi: Disconnected\n");
+  }
+  
   display.display();
 }
 
@@ -41,6 +53,6 @@ void displayTask(void* param) {
     
     // Use vTaskDelay for power efficiency - allows core to sleep
     // Refresh every 5 seconds - good balance between responsiveness and power
-    vTaskDelay(pdMS_TO_TICKS(5000));
+    vTaskDelay(pdMS_TO_TICKS(DISPLAY_UPDATE_INTERVAL_MS));
   }
 }

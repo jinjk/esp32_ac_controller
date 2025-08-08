@@ -10,8 +10,8 @@ extern const char* password;
 // ESP32-S3 Pin Definitions
 // Note: IR_RECV_PIN removed - no IR receiver required for Gree AC
 #define IR_SEND_PIN 13      // GPIO13 - IR Transmitter (Gree AC control)
-#define OLED_SDA 8          // GPIO8 - SDA for OLED (confirmed available)
-#define OLED_SCL 9          // GPIO9 - SCL for OLED (ESP32-S3 compatible)
+#define OLED_SDA 8          // GPIO8 - SDA for OLED and SHT31 (I2C shared bus)
+#define OLED_SCL 9          // GPIO9 - SCL for OLED and SHT31 (I2C shared bus)
 // GPIO12, GPIO14 now available for other uses
 
 // Display Configuration

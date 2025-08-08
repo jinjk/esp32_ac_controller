@@ -4,8 +4,8 @@
 #include <ArduinoJson.h>
 
 // WiFi Configuration
-const char* ssid = "YOUR_SSID";
-const char* password = "YOUR_PASSWORD";
+const char* ssid = "TP-LINK_0B75";
+const char* password = "bafe@123";
 
 // Time Configuration
 const char* ntpServer = "pool.ntp.org";

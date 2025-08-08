@@ -5,6 +5,41 @@
 #include <ir_Gree.h>
 #include <time.h>
 
+// Sleep interval for control loop (milliseconds)
+static const uint32_t CONTROL_LOOP_SLEEP_MS = 10 * 1000;
+
+// Track previous AC state to avoid unnecessary commands
+struct ACState {
+  bool power;
+  uint8_t temperature;
+  uint8_t fanSpeed;
+  uint8_t mode;
+  int vSwing;
+  int hSwing;
+};
+
+static ACState previousACState = {false, 24, 0, 0, 0, 0};
+
+// Helper function to check if AC state has changed
+bool hasACStateChanged(bool power, uint8_t temp, uint8_t fan, uint8_t mode, int vSwing, int hSwing) {
+  return (previousACState.power != power ||
+          previousACState.temperature != temp ||
+          previousACState.fanSpeed != fan ||
+          previousACState.mode != mode ||
+          previousACState.vSwing != vSwing ||
+          previousACState.hSwing != hSwing);
+}
+
+// Helper function to update previous AC state
+void updatePreviousACState(bool power, uint8_t temp, uint8_t fan, uint8_t mode, int vSwing, int hSwing) {
+  previousACState.power = power;
+  previousACState.temperature = temp;
+  previousACState.fanSpeed = fan;
+  previousACState.mode = mode;
+  previousACState.vSwing = vSwing;
+  previousACState.hSwing = hSwing;
+}
+
 void initTime() {
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
   Serial.println("Time synchronized");
@@ -24,7 +59,7 @@ void controlTask(void* param) {
     // Check if temperature reading is valid
     if (isnan(currentTemp)) {
       Serial.println("Failed to read temperature from SHT31");
-      vTaskDelay(pdMS_TO_TICKS(60000)); // 60 seconds - power efficient delay
+      vTaskDelay(pdMS_TO_TICKS(CONTROL_LOOP_SLEEP_MS)); // 60 seconds - power efficient delay
       continue;
     }
     
@@ -63,22 +98,44 @@ void controlTask(void* param) {
       if (timeMatch && tempMatch) {
         activeRuleId = rules[i].id;
         
-        Serial.printf("Applying Rule %d: %s (Temp: %.1f°C, Time: %02d:00)\n", 
+        Serial.printf("Rule %d matches: %s (Temp: %.1f°C, Time: %02d:00)\n", 
                      rules[i].id, rules[i].name.c_str(), currentTemp, hour);
         
-        if (rules[i].acOn) {
-          greeAC.powerOn();
-          greeAC.setTemperature((uint8_t)rules[i].setTemp);
-          greeAC.setFanSpeed(rules[i].fanSpeed);
-          greeAC.setMode(rules[i].mode);
-          greeAC.setSwingVPosition(rules[i].vSwing);
-          greeAC.setSwingHPosition(rules[i].hSwing);
-          Serial.printf("AC ON: %.1f°C, Fan %d, Mode %d, VSwing %d, HSwing %d\n", 
-                       rules[i].setTemp, rules[i].fanSpeed, rules[i].mode, 
-                       rules[i].vSwing, rules[i].hSwing);
+        // Check if AC state needs to change
+        bool stateChanged = hasACStateChanged(rules[i].acOn, (uint8_t)rules[i].setTemp, 
+                                            rules[i].fanSpeed, rules[i].mode, 
+                                            rules[i].vSwing, rules[i].hSwing);
+        
+        if (stateChanged) {
+          Serial.printf("AC State Change Detected - Applying Rule %d\n", rules[i].id);
+          
+          if (rules[i].acOn) {
+            // Configure all AC settings first
+            greeAC.powerOn();
+            greeAC.setTemperature((uint8_t)rules[i].setTemp);
+            greeAC.setFanSpeed(rules[i].fanSpeed);
+            greeAC.setMode(rules[i].mode);
+            greeAC.setSwingVPosition(rules[i].vSwing);
+            greeAC.setSwingHPosition(rules[i].hSwing);
+            
+            // Send all settings at once
+            greeAC.sendAllSettings();
+            
+            Serial.printf("AC ON: %.1f°C, Fan %d, Mode %d, VSwing %d, HSwing %d\n", 
+                         rules[i].setTemp, rules[i].fanSpeed, rules[i].mode, 
+                         rules[i].vSwing, rules[i].hSwing);
+          } else {
+            greeAC.powerOff();
+            greeAC.sendAllSettings(); // Send the OFF command
+            Serial.println("AC OFF");
+          }
+          
+          // Update tracked state
+          updatePreviousACState(rules[i].acOn, (uint8_t)rules[i].setTemp, 
+                              rules[i].fanSpeed, rules[i].mode, 
+                              rules[i].vSwing, rules[i].hSwing);
         } else {
-          greeAC.powerOff();
-          Serial.println("AC OFF");
+          Serial.printf("AC State Unchanged - Rule %d already applied\n", rules[i].id);
         }
         
         break; // Stop at first match
@@ -86,14 +143,23 @@ void controlTask(void* param) {
     }
     
     if (activeRuleId == -1) {
-      Serial.println("No matching rules found - AC unchanged");
+      Serial.println("No matching rules found");
+      
+      // Check if AC should be turned off (no rules match and AC was previously on)
+      if (previousACState.power) {
+        Serial.println("Turning AC OFF - No active rules");
+        greeAC.powerOff();
+        greeAC.sendAllSettings(); // Send the OFF command
+        updatePreviousACState(false, 24, 0, 0, 0, 0); // Reset to default off state
+      } else {
+        Serial.println("AC already OFF - No change needed");
+      }
     }
 
     // Log status
     logToCloud(currentTemp);
     
-    // Wait 60 seconds before next check - allows core to sleep for power efficiency
-    vTaskDelay(pdMS_TO_TICKS(60000));
+    vTaskDelay(pdMS_TO_TICKS(CONTROL_LOOP_SLEEP_MS));
   }
 }
 

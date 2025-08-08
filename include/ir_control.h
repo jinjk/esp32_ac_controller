@@ -50,6 +50,8 @@ public:
     
     // Command Control
     void sendCommand();
+    void sendAllSettings(); // Send all configured settings at once
+    void sendRawCommand(); // Alternative method for Chinese ACs
     
     // Status
     bool isReady();

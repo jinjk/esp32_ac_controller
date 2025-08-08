@@ -15,6 +15,8 @@ void GreeACController::init() {
     irsend.begin();
     ac.begin();
     
+    Serial.println("Initializing Gree AC for Chinese market compatibility");
+    
     // Set initial state - AC off with reasonable defaults
     ac.off();
     ac.setTemp(24);  // Default temperature
@@ -23,23 +25,29 @@ void GreeACController::init() {
     ac.setSwingVertical(false, kGreeSwingAuto);
     ac.setSwingHorizontal(kGreeSwingAuto);
     
-    Serial.println("Gree AC controller initialized");
+    // Try sending a test command to verify communication
+    Serial.println("Sending test power toggle command...");
+    ac.send();
+    delay(500);
+    ac.send(); // Send twice for reliability
+    
+    Serial.println("Gree AC controller initialized for Chinese market");
     Serial.println("AC ready for control");
 }
 
 // Power control
 void GreeACController::powerOn() {
+    Serial.println("Configuring AC Power ON for Chinese Gree AC...");
     ac.on();
-    sendCommand();
     _isOn = true;
-    Serial.println("AC: Power ON");
+    Serial.println("AC: Power configured to ON (ready to send)");
 }
 
 void GreeACController::powerOff() {
+    Serial.println("Configuring AC Power OFF for Chinese Gree AC...");
     ac.off();
-    sendCommand();
     _isOn = false;
-    Serial.println("AC: Power OFF");
+    Serial.println("AC: Power configured to OFF (ready to send)");
 }
 
 bool GreeACController::isPowerOn() {
@@ -50,8 +58,7 @@ bool GreeACController::isPowerOn() {
 void GreeACController::setTemperature(uint8_t temp) {
     if (temp >= 16 && temp <= 32) {
         ac.setTemp(temp);
-        sendCommand();
-        Serial.printf("AC: Temperature set to %d°C\n", temp);
+        Serial.printf("AC: Temperature configured to %d°C (not sent yet)\n", temp);
     }
 }
 
@@ -71,8 +78,7 @@ void GreeACController::setFanSpeed(uint8_t speed) {
     }
     
     ac.setFan(fanSpeed);
-    sendCommand();
-    Serial.printf("AC: Fan speed set to %d\n", speed);
+    Serial.printf("AC: Fan speed configured to %d (not sent yet)\n", speed);
 }
 
 uint8_t GreeACController::getFanSpeed() {
@@ -98,8 +104,7 @@ void GreeACController::setMode(uint8_t mode) {
     }
     
     ac.setMode(acMode);
-    sendCommand();
-    Serial.printf("AC: Mode set to %d\n", mode);
+    Serial.printf("AC: Mode configured to %d (not sent yet)\n", mode);
 }
 
 uint8_t GreeACController::getMode() {
@@ -116,14 +121,12 @@ uint8_t GreeACController::getMode() {
 // Swing control
 void GreeACController::setSwingV(bool enable) {
     ac.setSwingVertical(enable, kGreeSwingAuto);
-    sendCommand();
-    Serial.printf("AC: Vertical swing %s\n", enable ? "ON" : "OFF");
+    Serial.printf("AC: Vertical swing configured %s (not sent yet)\n", enable ? "ON" : "OFF");
 }
 
 void GreeACController::setSwingH(bool enable) {
     ac.setSwingHorizontal(enable ? kGreeSwingAuto : kGreeSwingHOff);
-    sendCommand();
-    Serial.printf("AC: Horizontal swing %s\n", enable ? "ON" : "OFF");
+    Serial.printf("AC: Horizontal swing configured %s (not sent yet)\n", enable ? "ON" : "OFF");
 }
 
 // Enhanced swing position control
@@ -131,52 +134,50 @@ void GreeACController::setSwingVPosition(int position) {
     switch (position) {
         case 0: // Auto
             ac.setSwingVertical(true, kGreeSwingAuto);
-            Serial.println("AC: Vertical swing set to Auto");
+            Serial.println("AC: Vertical swing configured to Auto (not sent yet)");
             break;
         case 1: // Top
             ac.setSwingVertical(false, kGreeSwingUp);
-            Serial.println("AC: Vertical swing set to Top");
+            Serial.println("AC: Vertical swing configured to Top (not sent yet)");
             break;
         case 2: // Mid
             ac.setSwingVertical(false, kGreeSwingMiddle);
-            Serial.println("AC: Vertical swing set to Mid");
+            Serial.println("AC: Vertical swing configured to Mid (not sent yet)");
             break;
         case 3: // Bottom
             ac.setSwingVertical(false, kGreeSwingDown);
-            Serial.println("AC: Vertical swing set to Bottom");
+            Serial.println("AC: Vertical swing configured to Bottom (not sent yet)");
             break;
         default:
             ac.setSwingVertical(true, kGreeSwingAuto);
-            Serial.println("AC: Vertical swing set to Auto (default)");
+            Serial.println("AC: Vertical swing configured to Auto (default, not sent yet)");
             break;
     }
-    sendCommand();
 }
 
 void GreeACController::setSwingHPosition(int position) {
     switch (position) {
         case 0: // Auto
             ac.setSwingHorizontal(kGreeSwingAuto);
-            Serial.println("AC: Horizontal swing set to Auto");
+            Serial.println("AC: Horizontal swing configured to Auto (not sent yet)");
             break;
         case 1: // Left
             ac.setSwingHorizontal(kGreeSwingHLeft);
-            Serial.println("AC: Horizontal swing set to Left");
+            Serial.println("AC: Horizontal swing configured to Left (not sent yet)");
             break;
         case 2: // Mid
             ac.setSwingHorizontal(kGreeSwingHMiddle);
-            Serial.println("AC: Horizontal swing set to Mid");
+            Serial.println("AC: Horizontal swing configured to Mid (not sent yet)");
             break;
         case 3: // Right
             ac.setSwingHorizontal(kGreeSwingHRight);
-            Serial.println("AC: Horizontal swing set to Right");
+            Serial.println("AC: Horizontal swing configured to Right (not sent yet)");
             break;
         default:
             ac.setSwingHorizontal(kGreeSwingAuto);
-            Serial.println("AC: Horizontal swing set to Auto (default)");
+            Serial.println("AC: Horizontal swing configured to Auto (default, not sent yet)");
             break;
     }
-    sendCommand();
 }
 
 bool GreeACController::getSwingV() {
@@ -193,9 +194,8 @@ bool GreeACController::getSwingH() {
 void GreeACController::setTimer(uint16_t minutes) {
     if (minutes > 0 && minutes <= 1440) { // Max 24 hours
         ac.setTimer(minutes);
-        sendCommand();
         uint16_t hours = minutes / 60;
-        Serial.printf("AC: Timer set to %d minutes (%d hours)\n", minutes, hours);
+        Serial.printf("AC: Timer configured to %d minutes (%d hours) (not sent yet)\n", minutes, hours);
     }
 }
 
@@ -205,14 +205,55 @@ uint16_t GreeACController::getTimer() {
 
 void GreeACController::clearTimer() {
     ac.setTimer(0);
-    sendCommand();
-    Serial.println("AC: Timer cleared");
+    Serial.println("AC: Timer cleared (not sent yet)");
 }
 
 // Send command to AC
 void GreeACController::sendCommand() {
+    Serial.println("=== Sending IR Command ===");
+    Serial.printf("Raw IR Data: 0x%016llX\n", ac.getRaw());
+    Serial.printf("Command details - Power: %s, Temp: %d°C, Fan: %d, Mode: %d\n", 
+                  ac.getPower() ? "ON" : "OFF", ac.getTemp(), ac.getFan(), ac.getMode());
+    
+    // Send command multiple times for Chinese AC compatibility
     ac.send();
-    delay(100); // Small delay to ensure command is sent
+    delay(200);
+    ac.send(); // Double send for reliability with Chinese models
+    delay(100);
+    
+    Serial.println("IR command sent successfully (double transmission)");
+    Serial.println("=========================");
+}
+
+// Send all configured settings at once (optimized for multiple changes)
+void GreeACController::sendAllSettings() {
+    Serial.println("=== Sending Complete AC Configuration ===");
+    Serial.printf("Power: %s, Temp: %d°C, Fan: %d, Mode: %d\n", 
+                  ac.getPower() ? "ON" : "OFF", ac.getTemp(), ac.getFan(), ac.getMode());
+    Serial.printf("Raw IR Data: 0x%016llX\n", ac.getRaw());
+    
+    // Send the complete configuration (all attributes set, single transmission)
+    ac.send();
+    delay(200);
+    ac.send(); // Double send for Chinese AC reliability
+    delay(100);
+    
+    Serial.println("Complete AC configuration sent successfully");
+    Serial.println("==========================================");
+}
+
+// Alternative method for stubborn Chinese Gree ACs
+void GreeACController::sendRawCommand() {
+    Serial.println("Trying alternative transmission method for Chinese AC...");
+    
+    // Try sending with longer delays and multiple attempts
+    for (int i = 0; i < 3; i++) {
+        ac.send();
+        delay(300); // Longer delay between attempts
+        Serial.printf("Transmission attempt %d/3\n", i + 1);
+    }
+    
+    Serial.println("Alternative transmission completed");
 }
 
 // Check if AC is ready

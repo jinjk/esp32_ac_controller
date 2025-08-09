@@ -1,5 +1,6 @@
 let currentRules = [];
 let editingRuleId = null;
+let debugMode = false; // Debug mode flag
 
 // Load and display active rule
 async function loadActiveRule() {
@@ -34,7 +35,7 @@ async function loadActiveRule() {
         
         updateActiveRuleDisplay(combinedData);
     } catch (error) {
-        document.getElementById('active-rule-status').innerHTML = '<span style="color: red;">[错误] 加载激活规则时出错</span>';
+        document.getElementById('active-rule-status').innerHTML = '<span style="color: red;">❌ 加载激活规则时出错</span>';
     }
 }
 
@@ -46,13 +47,13 @@ function updateActiveRuleDisplay(data) {
     const tempDisplay = data.currentTemp !== undefined ? 
         `${data.currentTemp.toFixed(1)}°C` : 
         '<span style="color: #999;">获取中...</span>';
-    statusHtml += `<div><strong>[温度] 当前温度：</strong> ${tempDisplay}</div>`;
+    statusHtml += `<div><strong>🌡️ 当前温度：</strong> ${tempDisplay}</div>`;
     
     // Display time with fallback
     const timeDisplay = data.currentHour !== undefined ? 
         `${data.currentHour}:00` : 
         '<span style="color: #999;">获取中...</span>';
-    statusHtml += `<div><strong>[时间] 当前时间：</strong> ${timeDisplay}</div>`;
+    statusHtml += `<div><strong>🕐 当前时间：</strong> ${timeDisplay}</div>`;
     statusHtml += `</div>`;
     
     if (data.activeRuleId && data.activeRuleId !== -1) {
@@ -95,7 +96,7 @@ function updateActiveRuleDisplay(data) {
         }
     } else {
         statusHtml += `<div style="margin-top: 15px; padding: 15px; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">`;
-        statusHtml += `<h4 style="margin: 0; color: #856404;">[STANDBY] No active rule - AC unchanged</h4>`;
+        statusHtml += `<h4 style="margin: 0; color: #856404;">💤 No active rule - AC unchanged</h4>`;
         statusHtml += `</div>`;
     }
     
@@ -112,14 +113,14 @@ async function loadRules() {
             updateRulesDisplay();
         }
     } catch (error) {
-        document.getElementById('rules-list').innerHTML = '<span style="color: red;">[ERROR] Error loading rules</span>';
+        document.getElementById('rules-list').innerHTML = '<span style="color: red;">❌ Error loading rules</span>';
     }
 }
 
 function updateRulesDisplay() {
     const rulesDiv = document.getElementById('rules-list');
     if (currentRules.length === 0) {
-        rulesDiv.innerHTML = '<div style="text-align: center; padding: 40px; color: #666;"><h3>[EMPTY] No rules configured</h3><p>Click "Add Rule" to create your first automation rule.</p></div>';
+        rulesDiv.innerHTML = '<div style="text-align: center; padding: 40px; color: #666;"><h3>📭 No rules configured</h3><p>Click "➕ Add Rule" to create your first automation rule.</p></div>';
         return;
     }
     
@@ -127,40 +128,43 @@ function updateRulesDisplay() {
     currentRules.forEach((rule, index) => {
         const enabledClass = rule.enabled ? 'active' : 'disabled';
         const statusClass = rule.enabled ? 'enabled' : 'disabled';
-        const statusText = rule.enabled ? '[ON]' : '[OFF]';
+        const statusText = rule.enabled ? '✅ ON' : '❌ OFF';
         
         // Build condition display
         const conditions = [];
         if (rule.startHour !== -1 && rule.endHour !== -1) {
-            conditions.push(`[TIME] ${rule.startHour}:00-${rule.endHour}:00`);
+            conditions.push(`🕐 ${rule.startHour}:00-${rule.endHour}:00`);
         }
         if (rule.minTemp !== -999 || rule.maxTemp !== -999) {
             const minStr = rule.minTemp !== -999 ? `≥${rule.minTemp}°C` : '';
             const maxStr = rule.maxTemp !== -999 ? `≤${rule.maxTemp}°C` : '';
-            conditions.push(`[TEMP] ${minStr}${minStr && maxStr ? ' & ' : ''}${maxStr}`);
+            conditions.push(`🌡️ ${minStr}${minStr && maxStr ? ' & ' : ''}${maxStr}`);
         }
         
-        const conditionText = conditions.length > 0 ? conditions.join(' • ') : '[ANY] Always';
-        const acAction = rule.acOn ? `[ON] Power ON → [TEMP] ${rule.setTemp}°C, [FAN] ${['Auto', 'Low', 'Med', 'High'][rule.fanSpeed]}` : '[OFF] Power OFF';
+        const conditionText = conditions.length > 0 ? conditions.join(' • ') : '🌐 未定义';
+        const modeNames = ['制冷', '制热', '除湿', '送风', '自动'];
+        const acAction = rule.acOn ? 
+            `🔛 开启 → 🌡️ ${rule.setTemp}°C, 模式: ${modeNames[rule.mode]}, 风速: ${['自动', '低', '中', '高'][rule.fanSpeed]}` : 
+            '🔴 关闭';
         
         rulesHtml += `
             <div class="rule-item ${enabledClass}">
                 <div class="rule-header">
-                    <h3 class="rule-title">[RULE] ${rule.name} (ID: ${rule.id})</h3>
+                    <h3 class="rule-title">⚙️ 规则 ${rule.name} (编号: ${rule.id})</h3>
                     <span class="rule-status ${statusClass}">${statusText}</span>
                 </div>
                 
                 <div class="rule-details">
-                    <p><strong>[CONDITIONS]</strong> ${conditionText}</p>
-                    <p><strong>[ACTION]</strong> ${acAction}</p>
+                    <p><strong>📋 条件</strong> ${conditionText}</p>
+                    <p><strong>⚡ 动作</strong> ${acAction}</p>
                 </div>
                 
                 <div class="rule-actions">
-                    <button onclick="editRule(${rule.id})" class="btn btn-primary">[EDIT] Edit</button>
+                    <button onclick="editRule(${rule.id})" class="btn btn-primary">✏️ 修改</button>
                     <button onclick="toggleRule(${rule.id}, ${!rule.enabled})" class="btn ${rule.enabled ? 'btn-warning' : 'btn-success'}">
-                        ${rule.enabled ? '[DISABLE] Disable' : '[ENABLE] Enable'}
+                        ${rule.enabled ? '⏸️ 停用' : '▶️ 启用'}
                     </button>
-                    <button onclick="deleteRuleConfirm(${rule.id})" class="btn btn-danger">[DELETE] Delete</button>
+                    <button onclick="deleteRuleConfirm(${rule.id})" class="btn btn-danger">🗑️ 删除</button>
                 </div>
             </div>
         `;
@@ -178,10 +182,10 @@ async function createNewRule() {
             await loadRules();
             editRule(data.ruleId);
         } else {
-            showNotification('[ERROR] Failed to create rule', 'error');
+            showNotification('❌ Failed to create rule', 'error');
         }
     } catch (error) {
-        showNotification('[ERROR] Connection failed', 'error');
+        showNotification('❌ Connection failed', 'error');
     }
 }
 
@@ -249,32 +253,41 @@ document.addEventListener('DOMContentLoaded', function() {
                 closeRuleEditor();
                 await loadRules();
                 await loadActiveRule();
-                showNotification('[SUCCESS] Rule saved successfully', 'success');
+                showNotification('✅ [SUCCESS] Rule saved successfully', 'success');
             } else {
-                showNotification('[ERROR] Failed to save rule', 'error');
+                showNotification('❌ [ERROR] Failed to save rule', 'error');
             }
         } catch (error) {
-            showNotification('[ERROR] Connection failed', 'error');
+            showNotification('🚫 [ERROR] Connection failed', 'error');
         }
     });
 });
 
 // Delete current rule
 async function deleteCurrentRule() {
-    if (!editingRuleId || !confirm('[CONFIRM] Are you sure you want to delete this rule? This action cannot be undone.')) return;
+    if (!editingRuleId || !confirm('⚠️ CONFIRM Are you sure you want to delete this rule? This action cannot be undone.')) return;
     
     try {
-        const response = await fetch(`/api/rules?id=${editingRuleId}`, { method: 'DELETE' });
+        const params = new URLSearchParams();
+        params.append('id', editingRuleId);
+        
+        const response = await fetch('/api/rules', {
+            method: 'DELETE',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: params
+        });
+        
         if (response.ok) {
             closeRuleEditor();
             await loadRules();
             await loadActiveRule();
-            showNotification('[SUCCESS] Rule deleted successfully', 'success');
+            showNotification('✅ Rule deleted successfully', 'success');
         } else {
-            showNotification('[ERROR] Failed to delete rule', 'error');
+            const errorData = await response.json();
+            showNotification(`❌ Failed to delete rule: ${errorData.message}`, 'error');
         }
     } catch (error) {
-        showNotification('[ERROR] Connection failed', 'error');
+        showNotification('❌ Connection failed', 'error');
     }
 }
 
@@ -283,7 +296,7 @@ function deleteRuleConfirm(ruleId) {
     const rule = currentRules.find(r => r.id === ruleId);
     if (!rule) return;
     
-    if (confirm(`[CONFIRM] Delete rule "${rule.name}"?\n\nThis action cannot be undone.`)) {
+    if (confirm(`⚠️ CONFIRM Delete rule "${rule.name}"?\n\nThis action cannot be undone.`)) {
         deleteRuleById(ruleId);
     }
 }
@@ -291,16 +304,25 @@ function deleteRuleConfirm(ruleId) {
 // Delete rule by ID
 async function deleteRuleById(ruleId) {
     try {
-        const response = await fetch(`/api/rules?id=${ruleId}`, { method: 'DELETE' });
+        const params = new URLSearchParams();
+        params.append('id', ruleId);
+        
+        const response = await fetch('/api/rules', {
+            method: 'DELETE',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: params
+        });
+        
         if (response.ok) {
             await loadRules();
             await loadActiveRule();
-            showNotification('[SUCCESS] Rule deleted successfully', 'success');
+            showNotification('✅ Rule deleted successfully', 'success');
         } else {
-            showNotification('[ERROR] Failed to delete rule', 'error');
+            const errorData = await response.json();
+            showNotification(`❌ Failed to delete rule: ${errorData.message}`, 'error');
         }
     } catch (error) {
-        showNotification('[ERROR] Connection failed', 'error');
+        showNotification('❌ Connection failed', 'error');
     }
 }
 
@@ -320,12 +342,12 @@ async function toggleRule(ruleId, enabled) {
         if (response.ok) {
             await loadRules();
             await loadActiveRule();
-            showNotification(`[SUCCESS] Rule ${enabled ? 'enabled' : 'disabled'}`, 'success');
+            showNotification(`✅ Rule ${enabled ? 'enabled' : 'disabled'}`, 'success');
         } else {
-            showNotification('[ERROR] Failed to update rule', 'error');
+            showNotification('❌ Failed to update rule', 'error');
         }
     } catch (error) {
-        showNotification('[ERROR] Connection failed', 'error');
+        showNotification('❌ Connection failed', 'error');
     }
 }
 
@@ -349,9 +371,69 @@ function showNotification(message, type) {
     }, 3000);
 }
 
+// Debug mode functions
+function toggleDebugMode() {
+    debugMode = document.getElementById('debug-mode-toggle').checked;
+    updateDebugModeDisplay();
+    saveDebugModeToServer();
+}
+
+function updateDebugModeDisplay() {
+    const statusElement = document.getElementById('debug-mode-status');
+    const textElement = document.getElementById('debug-mode-text');
+    const descriptionElement = document.getElementById('debug-mode-description');
+    
+    if (debugMode) {
+        statusElement.textContent = '调试模式';
+        statusElement.style.background = '#ffc107';
+        statusElement.style.color = '#212529';
+        textElement.textContent = '🔧 调试模式：强制发送IR命令';
+        descriptionElement.textContent = '开启时：忽略状态检查，每次都发送IR命令（测试模式）';
+    } else {
+        statusElement.textContent = '正常模式';
+        statusElement.style.background = '#28a745';
+        statusElement.style.color = 'white';
+        textElement.textContent = '🚀 调试模式：强制发送IR命令';
+        descriptionElement.textContent = '关闭时：仅在状态改变时发送IR命令（省电模式）';
+    }
+}
+
+async function saveDebugModeToServer() {
+    try {
+        const response = await fetch('/api/debug/mode', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: `enabled=${debugMode ? 'true' : 'false'}`
+        });
+        
+        if (response.ok) {
+            showNotification(`✅ ${debugMode ? '调试模式已开启' : '调试模式已关闭'}`, 'success');
+        } else {
+            showNotification('❌ 无法保存调试模式设置', 'error');
+        }
+    } catch (error) {
+        showNotification('❌ 连接失败', 'error');
+    }
+}
+
+async function loadDebugMode() {
+    try {
+        const response = await fetch('/api/debug/mode');
+        if (response.ok) {
+            const data = await response.json();
+            debugMode = data.debugMode || false;
+            document.getElementById('debug-mode-toggle').checked = debugMode;
+            updateDebugModeDisplay();
+        }
+    } catch (error) {
+        console.log('Debug mode API not available, using default');
+    }
+}
+
 // Initialize page
 window.addEventListener('load', function() {
     loadRules();
     loadActiveRule();
+    loadDebugMode(); // Load debug mode setting
     setInterval(loadActiveRule, 30000); // Refresh active rule every 30 seconds
 });

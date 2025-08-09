@@ -55,6 +55,16 @@
             }
             .grid { grid-template-columns: 1fr; }
             .rule-actions { justify-content: center; }
+            /* Debug mode mobile layout */
+            .debug-mode-container { 
+                flex-direction: column !important; 
+                align-items: flex-start !important; 
+                gap: 15px !important; 
+            }
+            .debug-mode-status-mobile { 
+                align-self: center; 
+                margin-top: 10px; 
+            }
         }
         /* Modal styles */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
@@ -85,6 +95,25 @@
             </div>
         </div>
 
+        <!-- Debug Mode Toggle -->
+        <div class="card">
+            <h2>🔧 调试模式</h2>
+            <div class="debug-mode-container" style="display: flex; align-items: center; gap: 15px; justify-content: space-between;">
+                <div>
+                    <label style="display: flex; align-items: center; gap: 10px; font-size: 16px;">
+                        <input type="checkbox" id="debug-mode-toggle" onchange="toggleDebugMode()" style="width: auto;">
+                        <span id="debug-mode-text">🚀 调试模式：强制发送IR命令</span>
+                    </label>
+                    <p style="margin: 10px 0 0 0; color: #666; font-size: 14px;">
+                        <span id="debug-mode-description">关闭时：仅在状态改变时发送IR命令（省电模式）</span>
+                    </p>
+                </div>
+                <div class="debug-mode-status-mobile">
+                    <span id="debug-mode-status" style="padding: 8px 16px; border-radius: 20px; font-weight: bold; background: #28a745; color: white;">正常模式</span>
+                </div>
+            </div>
+        </div>
+
         <!-- Rules List -->
         <div class="card">
             <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 20px;">
@@ -102,106 +131,106 @@
     <!-- Rule Editor Modal -->
     <div id="rule-editor" class="modal">
         <div class="modal-content">
-            <h2>[编辑] 规则配置</h2>
+            <h2>⚙️ 规则配置</h2>
             <form id="rule-form">
                 <input type="hidden" id="rule-id" name="id">
                 
                 <div class="form-group">
-                    <label>[名称] 规则名称：</label>
+                    <label>📝 规则名称：</label>
                     <input type="text" id="rule-name" name="name" required placeholder="输入规则名称">
                 </div>
                 
                 <div class="form-group">
                     <label>
-                        <input type="checkbox" id="rule-enabled" name="enabled"> [激活] 启用规则
+                        <input type="checkbox" id="rule-enabled" name="enabled"> ✅ 启用规则
                     </label>
                 </div>
                 
                 <div class="grid">
                     <div>
-                        <h3>[时间] 时间条件</h3>
+                        <h3>🕐 时间条件</h3>
                         <div class="form-group">
-                            <label>[开始] 开始时间 (0-23, -1=任意)：</label>
+                            <label>🌅 开始时间 (0-23, -1=任意)：</label>
                             <input type="number" id="rule-start-hour" name="startHour" min="-1" max="23" placeholder="-1">
                         </div>
                         <div class="form-group">
-                            <label>[结束] 结束时间 (0-23, -1=任意)：</label>
+                            <label>🌇 结束时间 (0-23, -1=任意)：</label>
                             <input type="number" id="rule-end-hour" name="endHour" min="-1" max="23" placeholder="-1">
                         </div>
                     </div>
                     
                     <div>
-                        <h3>[温度] 温度条件</h3>
+                        <h3>🌡️ 温度条件</h3>
                         <div class="form-group">
-                            <label>[最低] 最低温度 (-999=任意)：</label>
+                            <label>🔽 最低温度 (-999=任意)：</label>
                             <input type="number" id="rule-min-temp" name="minTemp" step="0.1" placeholder="-999">
                         </div>
                         <div class="form-group">
-                            <label>[最高] 最高温度 (-999=任意)：</label>
+                            <label>🔺 最高温度 (-999=任意)：</label>
                             <input type="number" id="rule-max-temp" name="maxTemp" step="0.1" placeholder="-999">
                         </div>
                     </div>
                 </div>
                 
-                <h3>[空调] 空调动作</h3>
+                <h3>❄️ 空调动作</h3>
                 <div class="form-group">
                     <label>
-                        <input type="checkbox" id="rule-ac-on" name="acOn"> [电源] 开启空调
+                        <input type="checkbox" id="rule-ac-on" name="acOn"> 🔌 开启空调
                     </label>
                 </div>
                 
                 <div class="grid">
                     <div class="form-group">
-                        <label>[温度] 设定温度 (°C)：</label>
+                        <label>🌡️ 设定温度 (°C)：</label>
                         <input type="number" id="rule-set-temp" name="setTemp" min="16" max="32" step="0.5" placeholder="24">
                     </div>
                     <div class="form-group">
-                        <label>[风扇] 风扇速度：</label>
+                        <label>💨 风扇速度：</label>
                         <select id="rule-fan-speed" name="fanSpeed">
-                            <option value="0">自动</option>
-                            <option value="1">低速</option>
-                            <option value="2">中速</option>
-                            <option value="3">高速</option>
+                            <option value="0">🔄 自动</option>
+                            <option value="1">🌪️ 低速</option>
+                            <option value="2">💨 中速</option>
+                            <option value="3">🌀 高速</option>
                         </select>
                     </div>
                 </div>
                 
                 <div class="form-group">
-                    <label>[模式] 空调模式：</label>
+                    <label>🎛️ 空调模式：</label>
                     <select id="rule-mode" name="mode">
-                        <option value="0">制冷</option>
-                        <option value="1">制热</option>
-                        <option value="2">除湿</option>
-                        <option value="3">送风</option>
-                        <option value="4">自动</option>
+                        <option value="0">❄️ 制冷</option>
+                        <option value="1">🔥 制热</option>
+                        <option value="2">💧 除湿</option>
+                        <option value="3">💨 送风</option>
+                        <option value="4">🔄 自动</option>
                     </select>
                 </div>
                 
                 <div class="grid">
                     <div class="form-group">
-                        <label>[上下摆风] 垂直摆风：</label>
+                        <label>↕️ 垂直摆风：</label>
                         <select id="rule-v-swing" name="vSwing">
-                            <option value="0">自动</option>
-                            <option value="1">向上</option>
-                            <option value="2">中间</option>
-                            <option value="3">向下</option>
+                            <option value="0">🔄 自动</option>
+                            <option value="1">⬆️ 向上</option>
+                            <option value="2">➡️ 中间</option>
+                            <option value="3">⬇️ 向下</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>[左右摆风] 水平摆风：</label>
+                        <label>↔️ 水平摆风：</label>
                         <select id="rule-h-swing" name="hSwing">
-                            <option value="0">自动</option>
-                            <option value="1">向左</option>
-                            <option value="2">中间</option>
-                            <option value="3">向右</option>
+                            <option value="0">🔄 自动</option>
+                            <option value="1">⬅️ 向左</option>
+                            <option value="2">➡️ 中间</option>
+                            <option value="3">➡️ 向右</option>
                         </select>
                     </div>
                 </div>
                 
                 <div style="text-align: center; margin-top: 20px;">
-                    <button type="submit" class="btn btn-primary">[保存] 保存规则</button>
-                    <button type="button" onclick="deleteCurrentRule()" class="btn btn-danger" id="delete-rule-btn">[删除] 删除规则</button>
-                    <button type="button" onclick="closeRuleEditor()" class="btn btn-secondary">[取消] 取消</button>
+                    <button type="submit" class="btn btn-primary">💾 保存规则</button>
+                    <button type="button" onclick="deleteCurrentRule()" class="btn btn-danger" id="delete-rule-btn">🗑️ 删除规则</button>
+                    <button type="button" onclick="closeRuleEditor()" class="btn btn-secondary">❌ 取消</button>
                 </div>
             </form>
         </div>

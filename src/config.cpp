@@ -12,6 +12,9 @@ const char* ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = 3600 * 8;  // GMT+8
 const int daylightOffset_sec = 0;
 
+// Debug mode flag - when true, always send IR commands regardless of state change
+bool debugMode = false;
+
 // Global Variables
 float currentTemp = 0.0;
 
@@ -76,8 +79,45 @@ void initDefaultRules() {
   ruleCount = 3;
 }
 
+// Sort rules by start time and then by minimum temperature
+void sortRules() {
+  if (ruleCount <= 1) return; // No need to sort if 0 or 1 rule
+  
+  // Simple bubble sort - sufficient for small arrays (max 10 rules)
+  for (int i = 0; i < ruleCount - 1; i++) {
+    for (int j = 0; j < ruleCount - i - 1; j++) {
+      bool shouldSwap = false;
+      
+      // Compare start times first
+      int startA = rules[j].startHour == -1 ? 999 : rules[j].startHour;     // -1 (any time) goes to end
+      int startB = rules[j+1].startHour == -1 ? 999 : rules[j+1].startHour; // -1 (any time) goes to end
+      
+      if (startA > startB) {
+        shouldSwap = true;
+      } else if (startA == startB) {
+        // If start times are equal, compare minimum temperatures
+        float minTempA = rules[j].minTemp == -999 ? 999.0 : rules[j].minTemp;     // -999 (any temp) goes to end
+        float minTempB = rules[j+1].minTemp == -999 ? 999.0 : rules[j+1].minTemp; // -999 (any temp) goes to end
+        
+        if (minTempA > minTempB) {
+          shouldSwap = true;
+        }
+      }
+      
+      if (shouldSwap) {
+        // Swap rules[j] and rules[j+1]
+        ACRule temp = rules[j];
+        rules[j] = rules[j+1];
+        rules[j+1] = temp;
+      }
+    }
+  }
+}
+
 // Save rules to SPIFFS
 void saveRulesToSPIFFS() {
+  // Sort rules before saving
+  sortRules();
   JsonDocument doc;
   JsonArray rulesArray = doc["rules"].to<JsonArray>();
   

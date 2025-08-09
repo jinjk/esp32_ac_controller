@@ -35,6 +35,9 @@ void setup() {
   // Initialize SPIFFS file system first
   initSPIFFS();
   
+  // Initialize hardware components
+  initDisplay();
+
   // Initialize WiFi
   initWiFi();
   
@@ -44,8 +47,6 @@ void setup() {
   // Initialize time synchronization (after WiFi is stable)
   initTime();
   
-  // Initialize hardware components
-  initDisplay();
   initSensors();
   initIR();
   

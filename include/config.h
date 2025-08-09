@@ -23,6 +23,9 @@ extern const char* ntpServer;
 extern const long gmtOffset_sec;
 extern const int daylightOffset_sec;
 
+// Debug mode flag
+extern bool debugMode;
+
 // Rule-based AC Control Structure
 struct ACRule {
   int id;                    // Unique rule ID
@@ -56,6 +59,7 @@ extern int activeRuleId;
 
 // Function declarations
 void initDefaultRules();
+void sortRules();
 void saveRulesToSPIFFS();
 void loadRulesFromSPIFFS();
 

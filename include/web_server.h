@@ -26,6 +26,10 @@ void handleSaveRules(AsyncWebServerRequest *request);
 void handleLoadRules(AsyncWebServerRequest *request);
 void handleResetRules(AsyncWebServerRequest *request);
 
+// Debug mode functions
+void handleGetDebugMode(AsyncWebServerRequest *request);
+void handleSetDebugMode(AsyncWebServerRequest *request);
+
 // Global web server object
 extern AsyncWebServer server;
 

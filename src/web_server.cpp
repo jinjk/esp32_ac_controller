@@ -60,6 +60,10 @@ void setupWebServer() {
   server.on("/api/rules/load", HTTP_POST, handleLoadRules);
   server.on("/api/rules/reset", HTTP_POST, handleResetRules);
   
+  // Debug mode APIs
+  server.on("/api/debug/mode", HTTP_GET, handleGetDebugMode);
+  server.on("/api/debug/mode", HTTP_POST, handleSetDebugMode);
+  
   server.on("/api/health", HTTP_GET, [](AsyncWebServerRequest *request) {
     JsonDocument doc;
     doc["status"] = "ok";
@@ -545,4 +549,45 @@ void handleResetRules(AsyncWebServerRequest *request) {
   String response;
   serializeJson(doc, response);
   request->send(200, "application/json", response);
+}
+
+// Debug mode management functions
+void handleGetDebugMode(AsyncWebServerRequest *request) {
+  JsonDocument doc;
+  
+  doc["debugMode"] = debugMode;
+  doc["description"] = debugMode ? "Debug mode: Force send IR commands" : "Normal mode: Send IR only when state changes";
+  doc["timestamp"] = millis();
+  
+  String response;
+  serializeJson(doc, response);
+  request->send(200, "application/json", response);
+}
+
+void handleSetDebugMode(AsyncWebServerRequest *request) {
+  JsonDocument doc;
+  
+  if (!request->hasParam("enabled", true)) {
+    doc["success"] = false;
+    doc["message"] = "Missing enabled parameter";
+    String response;
+    serializeJson(doc, response);
+    request->send(400, "application/json", response);
+    return;
+  }
+  
+  bool newDebugMode = request->getParam("enabled", true)->value() == "true";
+  debugMode = newDebugMode;
+  
+  doc["success"] = true;
+  doc["debugMode"] = debugMode;
+  doc["message"] = debugMode ? "Debug mode enabled - IR commands will be sent every time" : "Debug mode disabled - IR commands only sent when state changes";
+  doc["timestamp"] = millis();
+  
+  String response;
+  serializeJson(doc, response);
+  request->send(200, "application/json", response);
+  
+  // Log the debug mode change
+  Serial.printf("🔧 Debug mode %s\n", debugMode ? "ENABLED" : "DISABLED");
 }

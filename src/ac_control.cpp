@@ -153,13 +153,17 @@ void controlTask(void* param) {
         Serial.printf("Rule %d matches: %s (Temp: %.1f°C, Time: %02d:00)\n", 
                      rules[i].id, rules[i].name.c_str(), currentTemp, hour);
         
-        // Check if AC state needs to change
+        // Check if AC state needs to change OR if debug mode is enabled
         bool stateChanged = hasACStateChanged(rules[i].acOn, (uint8_t)rules[i].setTemp, 
                                             rules[i].fanSpeed, rules[i].mode, 
                                             rules[i].vSwing, rules[i].hSwing);
         
-        if (stateChanged) {
-          Serial.printf("AC State Change Detected - Applying Rule %d\n", rules[i].id);
+        if (stateChanged || debugMode) {
+          if (debugMode && !stateChanged) {
+            Serial.printf("🔧 DEBUG MODE: Force sending IR command for Rule %d (no state change)\n", rules[i].id);
+          } else {
+            Serial.printf("AC State Change Detected - Applying Rule %d\n", rules[i].id);
+          }
           
           if (rules[i].acOn) {
             // Configure all AC settings first
@@ -173,13 +177,14 @@ void controlTask(void* param) {
             // Send all settings at once
             greeAC.sendAllSettings();
             
-            Serial.printf("AC ON: %.1f°C, Fan %d, Mode %d, VSwing %d, HSwing %d\n", 
+            Serial.printf("AC ON: %.1f°C, Fan %d, Mode %d, VSwing %d, HSwing %d %s\n", 
                          rules[i].setTemp, rules[i].fanSpeed, rules[i].mode, 
-                         rules[i].vSwing, rules[i].hSwing);
+                         rules[i].vSwing, rules[i].hSwing,
+                         debugMode ? "[DEBUG]" : "");
           } else {
             greeAC.powerOff();
             greeAC.sendAllSettings(); // Send the OFF command
-            Serial.println("AC OFF");
+            Serial.printf("AC OFF %s\n", debugMode ? "[DEBUG]" : "");
           }
           
           // Update tracked state
@@ -187,7 +192,11 @@ void controlTask(void* param) {
                               rules[i].fanSpeed, rules[i].mode, 
                               rules[i].vSwing, rules[i].hSwing);
         } else {
-          Serial.printf("AC State Unchanged - Rule %d already applied\n", rules[i].id);
+          if (debugMode) {
+            Serial.printf("🔧 DEBUG MODE: Force sending IR command for Rule %d (no state change)\n", rules[i].id);
+          } else {
+            Serial.printf("AC State Unchanged - Rule %d already applied\n", rules[i].id);
+          }
         }
         
         break; // Stop at first match
@@ -198,8 +207,12 @@ void controlTask(void* param) {
       Serial.println("No matching rules found");
       
       // Check if AC should be turned off (no rules match and AC was previously on)
-      if (previousACState.power) {
-        Serial.println("Turning AC OFF - No active rules");
+      if (previousACState.power || debugMode) {
+        if (debugMode && !previousACState.power) {
+          Serial.println("🔧 DEBUG MODE: Force sending AC OFF command (already off)");
+        } else {
+          Serial.println("Turning AC OFF - No active rules");
+        }
         greeAC.powerOff();
         greeAC.sendAllSettings(); // Send the OFF command
         updatePreviousACState(false, 24, 0, 0, 0, 0); // Reset to default off state

@@ -7,6 +7,8 @@
 #include <ESPAsyncWebServer.h>
 #include <SPIFFS.h>
 #include <ArduinoJson.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 
 // Forward declarations
 void handleACControl(AsyncWebServerRequest *request);
@@ -323,14 +325,23 @@ void handleCreateRule(AsyncWebServerRequest *request) {
     
     // Save rules to persistent storage
     saveRulesToSPIFFS();
-  
-  doc["success"] = true;
-  doc["message"] = "Rule created successfully";
-  doc["ruleId"] = newId;
-  
-  String response;
-  serializeJson(doc, response);
-  request->send(200, "application/json", response);
+    
+    // Create response with new rule ID
+    doc["success"] = true;
+    doc["message"] = "Rule created successfully";
+    doc["ruleId"] = newId;
+    
+    String response;
+    serializeJson(doc, response);
+    request->send(200, "application/json", response);
+  } else {
+    // Failed to acquire mutex
+    doc["success"] = false;
+    doc["message"] = "Failed to acquire rule lock";
+    String response;
+    serializeJson(doc, response);
+    request->send(500, "application/json", response);
+  }
 }
 
 void handleUpdateRule(AsyncWebServerRequest *request) {

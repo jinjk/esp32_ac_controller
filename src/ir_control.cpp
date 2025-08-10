@@ -234,10 +234,11 @@ void GreeACController::sendAllSettings() {
     
     // Send the complete configuration (all attributes set, single transmission)
     ac.send();
-    delay(200);
+    delay(500);
     ac.send(); // Double send for Chinese AC reliability
+    delay(500);
+    ac.send(); // Triple send for Chinese AC reliability
     delay(100);
-    
     Serial.println("Complete AC configuration sent successfully");
     Serial.println("==========================================");
 }

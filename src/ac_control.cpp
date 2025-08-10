@@ -5,9 +5,8 @@
 #include <ir_Gree.h>
 #include <time.h>
 #include <WiFi.h>
-
-// Sleep interval for control loop (milliseconds)
-static const uint32_t CONTROL_LOOP_SLEEP_MS = 10 * 1000;
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 
 // Track previous AC state to avoid unnecessary commands
 static ACState previousACState = {false, 24, 0, 0, 0, 0};
@@ -35,6 +34,26 @@ void updatePreviousACState(bool power, uint8_t temp, uint8_t fan, uint8_t mode, 
 // Function to get current AC state
 ACState getCurrentACState() {
   return previousACState;
+}
+
+// Function to safely copy rules for thread-safe access
+// Returns the number of rules copied, or -1 if mutex acquisition failed
+int copyRulesThreadSafe(ACRule localRules[], int maxRules) {
+  int localRuleCount = 0;
+  
+  // Acquire mutex to safely copy rules
+  if (xSemaphoreTake(rulesMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+    // Copy rules to local array
+    for (int i = 0; i < ruleCount && i < maxRules; i++) {
+      localRules[i] = rules[i];
+    }
+    localRuleCount = ruleCount;
+    xSemaphoreGive(rulesMutex);
+    return localRuleCount;
+  } else {
+    Serial.println("⚠️ Failed to acquire rules mutex for reading");
+    return -1;
+  }
 }
 
 void initTime() {
@@ -110,8 +129,8 @@ void controlTask(void* param) {
     
     // Check if temperature reading is valid
     if (isnan(currentTemp)) {
-      Serial.println("Failed to read temperature from SHT31");
-      vTaskDelay(pdMS_TO_TICKS(CONTROL_LOOP_SLEEP_MS)); // 60 seconds - power efficient delay
+      Serial.println("Failed to read temperature, waiting for valid reading");
+      vTaskDelay(pdMS_TO_TICKS(AC_CONTROL_LOOP_INTERVAL_MS)); // Use global configuration - power efficient delay
       continue;
     }
     
@@ -122,19 +141,12 @@ void controlTask(void* param) {
     
     // Create local copy of rules for thread-safe access
     ACRule localRules[MAX_RULES];
-    int localRuleCount = 0;
+    int localRuleCount = copyRulesThreadSafe(localRules, MAX_RULES);
     
-    // Acquire mutex to safely copy rules
-    if (xSemaphoreTake(rulesMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
-      // Copy rules to local array
-      for (int i = 0; i < ruleCount && i < MAX_RULES; i++) {
-        localRules[i] = rules[i];
-      }
-      localRuleCount = ruleCount;
-      xSemaphoreGive(rulesMutex);
-    } else {
-      Serial.println("⚠️ Failed to acquire rules mutex for reading, skipping this cycle");
-      vTaskDelay(pdMS_TO_TICKS(CONTROL_LOOP_SLEEP_MS));
+    // Check if rule copying was successful
+    if (localRuleCount == -1) {
+      Serial.println("⚠️ Skipping this cycle due to mutex acquisition failure");
+      vTaskDelay(pdMS_TO_TICKS(AC_CONTROL_LOOP_INTERVAL_MS));
       continue;
     }
     
@@ -242,7 +254,7 @@ void controlTask(void* param) {
     // Log status
     logToCloud(currentTemp);
     
-    vTaskDelay(pdMS_TO_TICKS(CONTROL_LOOP_SLEEP_MS));
+    vTaskDelay(pdMS_TO_TICKS(AC_CONTROL_LOOP_INTERVAL_MS));
   }
 }
 

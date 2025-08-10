@@ -57,6 +57,10 @@ extern ACRule rules[MAX_RULES];
 extern int ruleCount;
 extern int activeRuleId;
 
+// System configuration
+extern uint32_t AC_CONTROL_LOOP_INTERVAL_MS; // Sleep time for control loop in milliseconds
+extern uint32_t DISPLAY_REFRESH_INTERVAL_MS;    // Sleep time for display refresh in milliseconds
+
 // Mutex for thread-safe rule access
 extern SemaphoreHandle_t rulesMutex;
 

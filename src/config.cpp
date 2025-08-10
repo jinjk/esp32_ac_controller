@@ -2,6 +2,8 @@
 #include <Arduino.h>
 #include <SPIFFS.h>
 #include <ArduinoJson.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 
 // WiFi Configuration
 const char* ssid = "TP-LINK_0B75";
@@ -25,6 +27,10 @@ int activeRuleId = -1;
 
 // Mutex for thread-safe access to rules
 SemaphoreHandle_t rulesMutex = NULL;
+
+// System timing configuration (in milliseconds)
+uint32_t AC_CONTROL_LOOP_INTERVAL_MS = 5000;  // 60 seconds for AC control loop
+uint32_t DISPLAY_REFRESH_INTERVAL_MS = 5000;   // 5 seconds for display refresh
 
 // Initialize the rules mutex
 void initRulesMutex() {

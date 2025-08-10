@@ -4,9 +4,6 @@
 #include <Wire.h>
 #include <WiFi.h>
 
-// Display update interval (milliseconds)
-const int DISPLAY_UPDATE_INTERVAL_MS = 5000;
-
 // Global display object
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
@@ -52,7 +49,7 @@ void displayTask(void* param) {
     updateDisplay();
     
     // Use vTaskDelay for power efficiency - allows core to sleep
-    // Refresh every 5 seconds - good balance between responsiveness and power
-    vTaskDelay(pdMS_TO_TICKS(DISPLAY_UPDATE_INTERVAL_MS));
+    // Use global configuration for display refresh timing
+    vTaskDelay(pdMS_TO_TICKS(DISPLAY_REFRESH_INTERVAL_MS));
   }
 }

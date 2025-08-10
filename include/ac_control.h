@@ -20,6 +20,9 @@ struct ACState {
 
 ACState getCurrentACState();
 
+// Function to safely copy rules for thread-safe access
+int copyRulesThreadSafe(ACRule localRules[], int maxRules);
+
 // Helper functions for state management
 bool hasACStateChanged(bool power, uint8_t temp, uint8_t fan, uint8_t mode, int vSwing, int hSwing);
 void updatePreviousACState(bool power, uint8_t temp, uint8_t fan, uint8_t mode, int vSwing, int hSwing);

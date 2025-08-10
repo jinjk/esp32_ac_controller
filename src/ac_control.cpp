@@ -120,66 +120,84 @@ void controlTask(void* param) {
     // Rule-based AC Control Logic
     activeRuleId = -1; // Reset active rule
     
-    // Find first matching rule
-    for (int i = 0; i < ruleCount; i++) {
-      if (!rules[i].enabled) continue;
+    // Create local copy of rules for thread-safe access
+    ACRule localRules[MAX_RULES];
+    int localRuleCount = 0;
+    
+    // Acquire mutex to safely copy rules
+    if (xSemaphoreTake(rulesMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+      // Copy rules to local array
+      for (int i = 0; i < ruleCount && i < MAX_RULES; i++) {
+        localRules[i] = rules[i];
+      }
+      localRuleCount = ruleCount;
+      xSemaphoreGive(rulesMutex);
+    } else {
+      Serial.println("⚠️ Failed to acquire rules mutex for reading, skipping this cycle");
+      vTaskDelay(pdMS_TO_TICKS(CONTROL_LOOP_SLEEP_MS));
+      continue;
+    }
+    
+    // Find first matching rule using local copy
+    for (int i = 0; i < localRuleCount; i++) {
+      if (!localRules[i].enabled) continue;
       
       bool timeMatch = true;
       bool tempMatch = true;
       
       // Check time conditions
-      if (rules[i].startHour != -1 && rules[i].endHour != -1) {
-        if (rules[i].endHour > rules[i].startHour) {
+      if (localRules[i].startHour != -1 && localRules[i].endHour != -1) {
+        if (localRules[i].endHour > localRules[i].startHour) {
           // Normal time range (e.g., 8-19)
-          timeMatch = (hour >= rules[i].startHour && hour < rules[i].endHour);
+          timeMatch = (hour >= localRules[i].startHour && hour < localRules[i].endHour);
         } else {
           // Overnight time range (e.g., 19-8)
-          timeMatch = (hour >= rules[i].startHour || hour < rules[i].endHour);
+          timeMatch = (hour >= localRules[i].startHour || hour < localRules[i].endHour);
         }
       }
       
       // Check temperature conditions
-      if (rules[i].minTemp != -999 && currentTemp < rules[i].minTemp) {
+      if (localRules[i].minTemp != -999 && currentTemp < localRules[i].minTemp) {
         tempMatch = false;
       }
-      if (rules[i].maxTemp != -999 && currentTemp > rules[i].maxTemp) {
+      if (localRules[i].maxTemp != -999 && currentTemp > localRules[i].maxTemp) {
         tempMatch = false;
       }
       
       // If both conditions match, apply this rule
       if (timeMatch && tempMatch) {
-        activeRuleId = rules[i].id;
+        activeRuleId = localRules[i].id;
         
         Serial.printf("Rule %d matches: %s (Temp: %.1f°C, Time: %02d:00)\n", 
-                     rules[i].id, rules[i].name.c_str(), currentTemp, hour);
+                     localRules[i].id, localRules[i].name.c_str(), currentTemp, hour);
         
         // Check if AC state needs to change OR if debug mode is enabled
-        bool stateChanged = hasACStateChanged(rules[i].acOn, (uint8_t)rules[i].setTemp, 
-                                            rules[i].fanSpeed, rules[i].mode, 
-                                            rules[i].vSwing, rules[i].hSwing);
+        bool stateChanged = hasACStateChanged(localRules[i].acOn, (uint8_t)localRules[i].setTemp, 
+                                            localRules[i].fanSpeed, localRules[i].mode, 
+                                            localRules[i].vSwing, localRules[i].hSwing);
         
         if (stateChanged || debugMode) {
           if (debugMode && !stateChanged) {
-            Serial.printf("🔧 DEBUG MODE: Force sending IR command for Rule %d (no state change)\n", rules[i].id);
+            Serial.printf("🔧 DEBUG MODE: Force sending IR command for Rule %d (no state change)\n", localRules[i].id);
           } else {
-            Serial.printf("AC State Change Detected - Applying Rule %d\n", rules[i].id);
+            Serial.printf("AC State Change Detected - Applying Rule %d\n", localRules[i].id);
           }
           
-          if (rules[i].acOn) {
+          if (localRules[i].acOn) {
             // Configure all AC settings first
             greeAC.powerOn();
-            greeAC.setTemperature((uint8_t)rules[i].setTemp);
-            greeAC.setFanSpeed(rules[i].fanSpeed);
-            greeAC.setMode(rules[i].mode);
-            greeAC.setSwingVPosition(rules[i].vSwing);
-            greeAC.setSwingHPosition(rules[i].hSwing);
+            greeAC.setTemperature((uint8_t)localRules[i].setTemp);
+            greeAC.setFanSpeed(localRules[i].fanSpeed);
+            greeAC.setMode(localRules[i].mode);
+            greeAC.setSwingVPosition(localRules[i].vSwing);
+            greeAC.setSwingHPosition(localRules[i].hSwing);
             
             // Send all settings at once
             greeAC.sendAllSettings();
             
             Serial.printf("AC ON: %.1f°C, Fan %d, Mode %d, VSwing %d, HSwing %d %s\n", 
-                         rules[i].setTemp, rules[i].fanSpeed, rules[i].mode, 
-                         rules[i].vSwing, rules[i].hSwing,
+                         localRules[i].setTemp, localRules[i].fanSpeed, localRules[i].mode, 
+                         localRules[i].vSwing, localRules[i].hSwing,
                          debugMode ? "[DEBUG]" : "");
           } else {
             greeAC.powerOff();
@@ -188,14 +206,14 @@ void controlTask(void* param) {
           }
           
           // Update tracked state
-          updatePreviousACState(rules[i].acOn, (uint8_t)rules[i].setTemp, 
-                              rules[i].fanSpeed, rules[i].mode, 
-                              rules[i].vSwing, rules[i].hSwing);
+          updatePreviousACState(localRules[i].acOn, (uint8_t)localRules[i].setTemp, 
+                              localRules[i].fanSpeed, localRules[i].mode, 
+                              localRules[i].vSwing, localRules[i].hSwing);
         } else {
           if (debugMode) {
-            Serial.printf("🔧 DEBUG MODE: Force sending IR command for Rule %d (no state change)\n", rules[i].id);
+            Serial.printf("🔧 DEBUG MODE: Force sending IR command for Rule %d (no state change)\n", localRules[i].id);
           } else {
-            Serial.printf("AC State Unchanged - Rule %d already applied\n", rules[i].id);
+            Serial.printf("AC State Unchanged - Rule %d already applied\n", localRules[i].id);
           }
         }
         

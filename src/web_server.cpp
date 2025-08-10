@@ -289,35 +289,40 @@ void handleCreateRule(AsyncWebServerRequest *request) {
     return;
   }
   
-  // Get next available ID
-  int newId = 1;
-  for (int i = 0; i < ruleCount; i++) {
-    if (rules[i].id >= newId) {
-      newId = rules[i].id + 1;
+  // Acquire mutex for thread-safe rule modification
+  if (xSemaphoreTake(rulesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    // Get next available ID
+    int newId = 1;
+    for (int i = 0; i < ruleCount; i++) {
+      if (rules[i].id >= newId) {
+        newId = rules[i].id + 1;
+      }
     }
-  }
-  
-  // Add new rule with default values
-  rules[ruleCount] = {
-    .id = newId,
-    .name = "New Rule",
-    .enabled = true,
-    .startHour = -1,
-    .endHour = -1,
-    .minTemp = -999,
-    .maxTemp = -999,
-    .acOn = true,
-    .setTemp = 25.0,
-    .fanSpeed = 2,
-    .mode = 0,
-    .vSwing = 0,  // Auto vertical swing
-    .hSwing = 0   // Auto horizontal swing
-  };
-  
-  ruleCount++;
-  
-  // Save rules to persistent storage
-  saveRulesToSPIFFS();
+    
+    // Add new rule with default values
+    rules[ruleCount] = {
+      .id = newId,
+      .name = "New Rule",
+      .enabled = true,
+      .startHour = -1,
+      .endHour = -1,
+      .minTemp = -999,
+      .maxTemp = -999,
+      .acOn = true,
+      .setTemp = 25.0,
+      .fanSpeed = 2,
+      .mode = 0,
+      .vSwing = 0,  // Auto vertical swing
+      .hSwing = 0   // Auto horizontal swing
+    };
+    
+    ruleCount++;
+    
+    // Release mutex before file I/O
+    xSemaphoreGive(rulesMutex);
+    
+    // Save rules to persistent storage
+    saveRulesToSPIFFS();
   
   doc["success"] = true;
   doc["message"] = "Rule created successfully";

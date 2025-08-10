@@ -57,10 +57,14 @@ extern ACRule rules[MAX_RULES];
 extern int ruleCount;
 extern int activeRuleId;
 
+// Mutex for thread-safe rule access
+extern SemaphoreHandle_t rulesMutex;
+
 // Function declarations
 void initDefaultRules();
 void sortRules();
 void saveRulesToSPIFFS();
 void loadRulesFromSPIFFS();
+void initRulesMutex();
 
 #endif

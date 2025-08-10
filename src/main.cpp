@@ -50,6 +50,9 @@ void setup() {
   initSensors();
   initIR();
   
+  // Initialize rules mutex for thread safety
+  initRulesMutex();
+  
   // Initialize rule system with persistence (after SPIFFS is mounted)
   loadRulesFromSPIFFS();
   Serial.println("✅ Rule system initialized with persistent storage");

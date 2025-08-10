@@ -20,4 +20,8 @@ struct ACState {
 
 ACState getCurrentACState();
 
+// Helper functions for state management
+bool hasACStateChanged(bool power, uint8_t temp, uint8_t fan, uint8_t mode, int vSwing, int hSwing);
+void updatePreviousACState(bool power, uint8_t temp, uint8_t fan, uint8_t mode, int vSwing, int hSwing);
+
 #endif
